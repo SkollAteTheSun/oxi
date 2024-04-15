@@ -2,8 +2,8 @@
 Description=kp-ms-oxi
 
 [Service]
-WorkingDirectory=/root/ms/oxi
-ExecStart=/root/ms/oxi/Kp.Ms.Oxi
+WorkingDirectory=/var/www/oxi.ms.karousel.ru/web
+ExecStart=/var/www/oxi.ms.karousel.ru/web/Kp.Ms.Oxi
 SyslogIdentifier=kp-ms-oxi
 Environment=ASPNETCORE_ENVIRONMENT=Staging
 Environment=ASPNETCORE_URLS=http://localhost:5701
