@@ -40,18 +40,18 @@ var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 if (!app.Environment.IsProduction())
 {
-    app.UseSwagger(options => { options.RouteTemplate = "/api/oxi/swagger/{documentName}/swagger.json"; });
+    app.UseSwagger(options => { options.RouteTemplate = "/api/swagger/{documentName}/swagger.json"; });
     app.UseSwaggerUI(options =>
     {
         foreach (var description in provider.ApiVersionDescriptions)
         {
             options.SwaggerEndpoint(
-                $"/api/oxi/swagger/{description.GroupName}/swagger.json",
+                $"/api/swagger/{description.GroupName}/swagger.json",
                 description.GroupName.ToUpperInvariant()
             );
         }
 
-        options.RoutePrefix = "api/oxi/swagger";
+        options.RoutePrefix = "api/swagger";
     });
 }
 
