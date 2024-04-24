@@ -2,8 +2,27 @@ using System.Text.Json.Serialization;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using Kp.Ms.Oxi.Config;
+using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+string? dbConnectionString = builder.Configuration.GetConnectionString("Booking");
+if (string.IsNullOrEmpty(dbConnectionString))
+{
+    throw new Exception("Connection string 'Booking' not found.");
+}
+builder.Services.AddDbContext<BookingContext>(options =>
+{
+    options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString));
+}, ServiceLifetime.Transient);
+builder.Services.AddDbContextFactory<BookingContext>(
+    options =>
+    {
+        options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString)); 
+    }, ServiceLifetime.Transient
+);
 
 builder.Services
     .AddControllers()
@@ -35,6 +54,8 @@ builder.Services.AddCors(c => c.AddPolicy("cors", opt =>
     opt.AllowAnyMethod();
     opt.WithOrigins(builder.Configuration.GetSection("Cors:Urls").Get<string[]>()!);
 }));
+
+builder.Services.AddScoped<RateService>();
 
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
