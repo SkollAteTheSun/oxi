@@ -32,7 +32,7 @@ public class ConfigureSwaggerOptions : IConfigureNamedOptions<SwaggerGenOptions>
     {
         var info = new OpenApiInfo()
         {
-            Title = "Terminal API",
+            Title = "OXI API",
             Version = description.ApiVersion.ToString()
         };
 
