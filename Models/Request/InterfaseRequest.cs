@@ -11,9 +11,6 @@ public class InterfaseRequest
     public required string InterfaseName { get; set; }
     
     [Required]
-    public required string PropertyName { get; set; }
-    
-    [Required]
     public required string TransactionId { get; set; }
     
     [Required]

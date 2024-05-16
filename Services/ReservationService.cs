@@ -54,7 +54,7 @@ public class ReservationService
             ReservationId = request.Reservation.ExternalId ?? string.Empty,
             ReservationOriginatorCode = "BOOKING",
             MfLegNumbers = 1,
-            OriginalBookingDate = request.Reservation.OriginalBookingDate,
+            OriginalBookingDate = request.Reservation.CreatedAt,
             StayDateRange = new TimeUnit
             {
                 TimeUnitType = "DAY",
@@ -85,7 +85,7 @@ public class ReservationService
                     GuestViewable = 1,
                     Comment = "RATE_FIXED=NO",
                     MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.OriginalBookingDate
+                    MfcommentDate = request.Reservation.CreatedAt
                 },
                 new ResComment
                 {
@@ -95,7 +95,7 @@ public class ReservationService
                     GuestViewable = 1,
                     Comment = "DISCOUNT_PERCENTAGE=0",
                     MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.OriginalBookingDate
+                    MfcommentDate = request.Reservation.CreatedAt
                 },
                 new ResComment
                 {
@@ -105,7 +105,7 @@ public class ReservationService
                     GuestViewable = 1,
                     Comment = "PARTY=",
                     MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.OriginalBookingDate
+                    MfcommentDate = request.Reservation.CreatedAt
                 },
                 new ResComment
                 {
@@ -115,7 +115,7 @@ public class ReservationService
                     GuestViewable = 1,
                     Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
                     MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.OriginalBookingDate
+                    MfcommentDate = request.Reservation.CreatedAt
                 }
             ],
             ResGuests =
@@ -389,7 +389,7 @@ public class ReservationService
                     var queryParams = new Dictionary<string, string>
                     {
                         { "interfaceName", request.Interfase.InterfaseName },
-                        { "propertyName", request.Interfase.PropertyName },
+                        { "propertyName", request.Interfase.HotelCode },
                         { "messageType", "RESERVATION" },
                         { "transactionId", request.Interfase.TransactionId },
                         { "status", request.Interfase.Status },

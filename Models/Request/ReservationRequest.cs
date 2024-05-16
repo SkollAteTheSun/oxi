@@ -10,7 +10,7 @@ public class ReservationRequest
     public required string ReservationNumber { get; set; }
     
     [Required]
-    public DateTime OriginalBookingDate { get; set; }
+    public DateTime CreatedAt { get; set; }
     
     [Required]
     public DateTime DateIn { get; set; }
