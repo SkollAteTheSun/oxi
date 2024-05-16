@@ -2,13 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Kp.Ms.Oxi.Models.Request;
 
-public class InterfaseRequest
+public class InterfaсeRequest
 {
     [Required]
     public required string Url { get; set; }
     
     [Required]
-    public required string InterfaseName { get; set; }
+    public required string InterfaсeName { get; set; }
     
     [Required]
     public required string TransactionId { get; set; }
