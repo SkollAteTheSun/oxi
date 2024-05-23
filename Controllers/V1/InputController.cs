@@ -19,6 +19,7 @@ public class InputController : ControllerBase
     }
 
     [HttpPost("receive")]
+    [Consumes("application/xml")]
     [SwaggerOperation(Summary = "Получение сообщения")]
     public async Task<ActionResult> Receive()
     {
