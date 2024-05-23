@@ -341,7 +341,7 @@ public class ReservationService
                     ],
                     mfsourceCode = request.Reservation.RoomStay.SourceCode,
                     marketSegmentCode = request.Reservation.RoomStay.MarketCode,
-                    mfchannelCode = "B",
+                    mfchannelCode = "P",
                     mfconfidentialRate = 0
                 }
             ],

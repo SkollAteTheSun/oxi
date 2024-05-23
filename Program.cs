@@ -57,6 +57,7 @@ builder.Services.AddCors(c => c.AddPolicy("cors", opt =>
 
 builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
+builder.Services.AddTransient<InputService>();
 
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
