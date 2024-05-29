@@ -49,7 +49,7 @@ public class ReservationService
             MfReservationAction = "ADD",
             HotelReference = new HotelReference
             {
-                HotelCode = request.Interfaсe.HotelCode
+                HotelCode = request.Interface.HotelCode
             },
             ReservationId = request.Reservation.ExternalId ?? string.Empty,
             ReservationOriginatorCode = "BOOKING",
@@ -187,7 +187,7 @@ public class ReservationService
                         },
                         DateOfBirth = request.Reservation.Profile.DateOfBirth,
                         PrimaryLanguageId = "R",
-                        MfResort = request.Interfaсe.HotelCode,
+                        MfResort = request.Interface.HotelCode,
                         MfResortProfileId = request.Reservation.Profile.ExternalId ?? string.Empty,
                         MfNameCode = "112233",
                         MfAllowMail = "YES",
@@ -370,7 +370,7 @@ public class ReservationService
 
                 string xmlHeader = $"""
                                     <?xml version = '1.0'?>
-                                    <?Label {request.Interfaсe.HotelCode}|RESERVATION|{request.Interfaсe.TransactionId}|{request.Interfaсe.Status}?>
+                                    <?Label {request.Interface.HotelCode}|RESERVATION|{request.Interface.TransactionId}|{request.Interface.Status}?>
                                     """;
 
                 StringBuilder sb = new StringBuilder();
@@ -388,15 +388,15 @@ public class ReservationService
 
                     var queryParams = new Dictionary<string, string>
                     {
-                        { "interfaceName", request.Interfaсe.InterfaсeName },
-                        { "propertyName", request.Interfaсe.HotelCode },
+                        { "interfaceName", request.Interface.InterfaсeName },
+                        { "propertyName", request.Interface.HotelCode },
                         { "messageType", "RESERVATION" },
-                        { "transactionId", request.Interfaсe.TransactionId },
-                        { "status", request.Interfaсe.Status },
+                        { "transactionId", request.Interface.TransactionId },
+                        { "status", request.Interface.Status },
                     };
 
                     var queryBuilder = new QueryBuilder(queryParams);
-                    string basePath = request.Interfaсe.Url;
+                    string basePath = request.Interface.Url;
 
                     var requestMessage = new HttpRequestMessage(HttpMethod.Post, basePath + queryBuilder);
                     requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");

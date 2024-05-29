@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Kp.Ms.Oxi.Models.Request;
 
-public class InterfaсeRequest
+public class InterfaceRequest
 {
     [Required]
     public required string Url { get; set; }
