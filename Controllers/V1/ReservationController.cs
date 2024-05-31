@@ -21,9 +21,9 @@ public class ReservationController : ControllerBase
 
     [HttpPost]
     [SwaggerOperation(Summary = "Создание новой брони в опере")]
-    public async Task<ActionResult> Create([FromBody] CreateReservationRequest request)
+    public async Task<ActionResult<string>> Create([FromBody] CreateReservationRequest request)
     {
-        await _reservationService.Send(request);
-        return Ok();
+        string response = await _reservationService.Send(request);
+        return Ok(response);
     }
 }

@@ -1,16 +1,17 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml;
 using Kp.Ms.Oxi.Models.Request;
 
 namespace Kp.Ms.Oxi.Services;
 
-public class InputService
+public class MessageService
 {
     private readonly IConfiguration _configuration;
-    private readonly ILogger<InputService> _logger;
+    private readonly ILogger<MessageService> _logger;
 
-    public InputService(IConfiguration configuration, ILogger<InputService> logger)
+    public MessageService(IConfiguration configuration, ILogger<MessageService> logger)
     {
         _configuration = configuration;
         _logger = logger;
@@ -51,11 +52,11 @@ public class InputService
         try
         {
             baseUrl = _configuration["BookingApi:BaseUrl"] ??
-                             throw new Exception("Booking api base url not configured");
+                      throw new Exception("Booking api base url not configured");
             token = _configuration["BookingApi:Token"] ??
-                           throw new Exception("Booking api token not configured");
+                    throw new Exception("Booking api token not configured");
             transactionGetResponseUrl = _configuration["BookingApi:TransactionGetResponseUrl"] ??
-                                               throw new Exception("Booking api transaction get response not configured");
+                                        throw new Exception("Booking api transaction get response not configured");
         }
         catch (Exception ex)
         {
@@ -105,13 +106,13 @@ public class InputService
         }
 
         _logger.LogInformation("Request to booking api transaction get response: {Request}", JsonSerializer.Serialize(request));
-        
+
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, baseUrl + transactionGetResponseUrl);
         requestMessage.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
         using var response = await httpClient.SendAsync(requestMessage);
         string apiResponse = await response.Content.ReadAsStringAsync();
-        
-        _logger.LogInformation("Response of booking api transaction get response: {Response}", System.Text.RegularExpressions.Regex.Unescape(apiResponse));
+
+        _logger.LogInformation("Response of booking api transaction get response: {Response}", Regex.Unescape(apiResponse));
 
         return true;
     }

@@ -1,6 +1,10 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Xml;
 using System.Xml.Serialization;
+using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -11,11 +15,13 @@ public class ReservationService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<ReservationService> _logger;
+    private readonly DefaultContext _context;
 
-    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger)
+    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context)
     {
         _configuration = configuration;
         _logger = logger;
+        _context = context;
     }
 
     public async Task<string> Send(CreateReservationRequest request)
@@ -49,7 +55,7 @@ public class ReservationService
             MfReservationAction = "ADD",
             HotelReference = new HotelReference
             {
-                HotelCode = request.Interfaсe.HotelCode
+                HotelCode = request.Interface.HotelCode
             },
             ReservationId = request.Reservation.ExternalId ?? string.Empty,
             ReservationOriginatorCode = "BOOKING",
@@ -187,7 +193,7 @@ public class ReservationService
                         },
                         DateOfBirth = request.Reservation.Profile.DateOfBirth,
                         PrimaryLanguageId = "R",
-                        MfResort = request.Interfaсe.HotelCode,
+                        MfResort = request.Interface.HotelCode,
                         MfResortProfileId = request.Reservation.Profile.ExternalId ?? string.Empty,
                         MfNameCode = "112233",
                         MfAllowMail = "YES",
@@ -359,8 +365,7 @@ public class ReservationService
             OmitXmlDeclaration = true
         };
 
-        string? apiResponse = null;
-
+        string xml;
         using (var sww = new StringWriter())
         {
             using (XmlWriter writer = XmlWriter.Create(sww, settings))
@@ -370,7 +375,7 @@ public class ReservationService
 
                 string xmlHeader = $"""
                                     <?xml version = '1.0'?>
-                                    <?Label {request.Interfaсe.HotelCode}|RESERVATION|{request.Interfaсe.TransactionId}|{request.Interfaсe.Status}?>
+                                    <?Label {request.Interface.HotelCode}|RESERVATION|{request.Interface.TransactionId}|{request.Interface.Status}?>
                                     """;
 
                 StringBuilder sb = new StringBuilder();
@@ -378,35 +383,57 @@ public class ReservationService
                 sb.Append('\n');
                 sb.Append(xmlBody);
 
-                var xml = sb.ToString();
+                xml = sb.ToString();
+            }
+        }
 
-                using (var httpClient = new HttpClient())
+        string? apiResponse = null;
+
+        var queryParams = new Dictionary<string, string>
+        {
+            { "interfaceName", request.Interface.InterfaсeName },
+            { "propertyName", request.Interface.HotelCode },
+            { "messageType", "RESERVATION" },
+            { "transactionId", request.Interface.TransactionId },
+            { "status", request.Interface.Status },
+        };
+        var queryBuilder = new QueryBuilder(queryParams);
+        string basePath = request.Interface.Url;
+
+        bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
+        if (directMode)
+        {
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.DefaultRequestHeaders.Clear();
+                httpClient.DefaultRequestHeaders.ConnectionClose = true;
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, basePath + queryBuilder);
+                requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
+                using (var response = httpClient.SendAsync(requestMessage).Result)
                 {
-                    httpClient.DefaultRequestHeaders.Clear();
-                    httpClient.DefaultRequestHeaders.ConnectionClose = true;
-                    httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-                    var queryParams = new Dictionary<string, string>
-                    {
-                        { "interfaceName", request.Interfaсe.InterfaсeName },
-                        { "propertyName", request.Interfaсe.HotelCode },
-                        { "messageType", "RESERVATION" },
-                        { "transactionId", request.Interfaсe.TransactionId },
-                        { "status", request.Interfaсe.Status },
-                    };
-
-                    var queryBuilder = new QueryBuilder(queryParams);
-                    string basePath = request.Interfaсe.Url;
-
-                    var requestMessage = new HttpRequestMessage(HttpMethod.Post, basePath + queryBuilder);
-                    requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
-                    using (var response = httpClient.SendAsync(requestMessage).Result)
-                    {
-                        response.EnsureSuccessStatusCode();
-                        apiResponse = response.Content.ReadAsStringAsync().Result;
-                    }
+                    response.EnsureSuccessStatusCode();
+                    apiResponse = response.Content.ReadAsStringAsync().Result;
                 }
             }
+        }
+        else
+        {
+            _context.Transactions.Add(new Transaction
+            {
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                TransactionId = request.Interface.TransactionId,
+                InterfaсeName = request.Interface.InterfaсeName,
+                Status = request.Interface.Status,
+                Request = JsonSerializer.Serialize(request),
+                Url = basePath + queryBuilder,
+                Xml = xml
+            });
+            await _context.SaveChangesAsync();
+
+            apiResponse = "saved to database";
         }
 
         return apiResponse;

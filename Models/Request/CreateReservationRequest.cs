@@ -5,7 +5,7 @@ namespace Kp.Ms.Oxi.Models.Request;
 public class CreateReservationRequest
 {
     [Required]
-    public required InterfaсeRequest Interfaсe { get; set; }
+    public required InterfaceRequest Interface { get; set; }
 
     [Required]
     public required ReservationRequest Reservation { get; set; }
