@@ -8,14 +8,14 @@ namespace Kp.Ms.Oxi.Controllers.V1;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-[SwaggerTag("Контроллер обработки входящих сообщений от внешних систем")]
-public class InputController : ControllerBase
+[SwaggerTag("Сообщения от внешних систем")]
+public class MessageController : ControllerBase
 {
-    private readonly InputService _inputService;
+    private readonly MessageService _messageService;
 
-    public InputController(InputService inputService)
+    public MessageController(MessageService messageService)
     {
-        _inputService = inputService;
+        _messageService = messageService;
     }
 
     [HttpPost("receive")]
@@ -25,7 +25,7 @@ public class InputController : ControllerBase
     {
         using StreamReader reader = new(Request.Body);
         string message = await reader.ReadToEndAsync();
-        await _inputService.Receive(message);
+        await _messageService.Receive(message);
         return Ok();
     }
 }

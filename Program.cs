@@ -8,21 +8,30 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-string? dbConnectionString = builder.Configuration.GetConnectionString("Booking");
-if (string.IsNullOrEmpty(dbConnectionString))
+string? bookingConnectionString = builder.Configuration.GetConnectionString("Booking");
+if (string.IsNullOrEmpty(bookingConnectionString))
 {
     throw new Exception("Connection string 'Booking' not found.");
 }
 builder.Services.AddDbContext<BookingContext>(options =>
 {
-    options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString));
+    options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString));
 }, ServiceLifetime.Transient);
 builder.Services.AddDbContextFactory<BookingContext>(
     options =>
     {
-        options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString)); 
+        options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString));
     }, ServiceLifetime.Transient
 );
+
+string? defaultConnectionString = builder.Configuration.GetConnectionString("Db");
+if (string.IsNullOrEmpty(defaultConnectionString))
+{
+    throw new Exception("Connection string 'Db' not found.");
+}
+builder.Services.AddDbContext<DefaultContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("Db")));
+
 
 builder.Services
     .AddControllers()
@@ -57,7 +66,8 @@ builder.Services.AddCors(c => c.AddPolicy("cors", opt =>
 
 builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
-builder.Services.AddTransient<InputService>();
+builder.Services.AddTransient<MessageService>();
+builder.Services.AddTransient<TransactionService>();
 
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
