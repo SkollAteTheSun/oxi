@@ -18,11 +18,13 @@ namespace Kp.Ms.Oxi.Migrations
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     transaction_id = table.Column<string>(type: "text", nullable: false),
+                    sended = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     interface_name = table.Column<string>(type: "text", nullable: false),
                     status = table.Column<string>(type: "text", nullable: false),
+                    url = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     request = table.Column<string>(type: "text", nullable: false),
                     xml = table.Column<string>(type: "text", nullable: false)
                 },

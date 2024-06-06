@@ -7,7 +7,7 @@ public class Transaction
     public DateTime UpdatedAt { get; set; }
     public bool Sended { get; set; }
     public required string TransactionId { get; set; }
-    public required string InterfaсeName { get; set; }
+    public required string InterfaceName { get; set; }
     public required string Status { get; set; }
     public required string Request { get; set; }
     public required string Url { get; set; }

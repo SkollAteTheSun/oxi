@@ -27,53 +27,63 @@ namespace Kp.Ms.Oxi.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(1);
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasColumnOrder(7);
 
-                    b.Property<string>("InterfaсeName")
+                    b.Property<string>("InterfaceName")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("interface_name");
+                        .HasColumnName("interface_name")
+                        .HasColumnOrder(4);
 
                     b.Property<string>("Request")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("request");
+                        .HasColumnName("request")
+                        .HasColumnOrder(9);
 
                     b.Property<bool>("Sended")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
-                        .HasColumnName("sended");
+                        .HasColumnName("sended")
+                        .HasColumnOrder(3);
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasColumnOrder(5);
 
                     b.Property<string>("TransactionId")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("transaction_id");
+                        .HasColumnName("transaction_id")
+                        .HasColumnOrder(2);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasColumnOrder(8);
 
                     b.Property<string>("Url")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("url");
+                        .HasColumnName("url")
+                        .HasColumnOrder(6);
 
                     b.Property<string>("Xml")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("xml");
+                        .HasColumnName("xml")
+                        .HasColumnOrder(10);
 
                     b.HasKey("Id")
                         .HasName("pk_transaction");

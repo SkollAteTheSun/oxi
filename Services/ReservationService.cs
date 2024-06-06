@@ -391,7 +391,7 @@ public class ReservationService
 
         var queryParams = new Dictionary<string, string>
         {
-            { "interfaceName", request.Interface.InterfaсeName },
+            { "interfaceName", request.Interface.InterfaceName },
             { "propertyName", request.Interface.HotelCode },
             { "messageType", "RESERVATION" },
             { "transactionId", request.Interface.TransactionId },
@@ -425,7 +425,7 @@ public class ReservationService
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 TransactionId = request.Interface.TransactionId,
-                InterfaсeName = request.Interface.InterfaсeName,
+                InterfaceName = request.Interface.InterfaceName,
                 Status = request.Interface.Status,
                 Request = JsonSerializer.Serialize(request),
                 Url = basePath + queryBuilder,
