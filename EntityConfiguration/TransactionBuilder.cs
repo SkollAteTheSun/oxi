@@ -12,15 +12,15 @@ public class TransactionBuilder : IEntityTypeConfiguration<Transaction>
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.Id).HasColumnName("id");
-        builder.Property(x => x.CreatedAt).HasColumnName("created_at");
-        builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
-        builder.Property(x => x.Sended).HasColumnName("sended").HasDefaultValue(false);
-        builder.Property(x => x.TransactionId).HasColumnName("transaction_id");
-        builder.Property(x => x.InterfaсeName).HasColumnName("interface_name");
-        builder.Property(x => x.Status).HasColumnName("status");
-        builder.Property(x => x.Request).HasColumnName("request");
-        builder.Property(x => x.Url).HasColumnName("url");
-        builder.Property(x => x.Xml).HasColumnName("xml");
+        builder.Property(x => x.Id).HasColumnName("id").HasColumnOrder(1);
+        builder.Property(x => x.TransactionId).HasColumnName("transaction_id").HasColumnOrder(2);
+        builder.Property(x => x.Sended).HasColumnName("sended").HasDefaultValue(false).HasColumnOrder(3);
+        builder.Property(x => x.InterfaceName).HasColumnName("interface_name").HasColumnOrder(4);
+        builder.Property(x => x.Status).HasColumnName("status").HasColumnOrder(5);
+        builder.Property(x => x.Url).HasColumnName("url").HasColumnOrder(6);
+        builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnOrder(7);
+        builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnOrder(8);
+        builder.Property(x => x.Request).HasColumnName("request").HasColumnOrder(9);
+        builder.Property(x => x.Xml).HasColumnName("xml").HasColumnOrder(10);
     }
 }
