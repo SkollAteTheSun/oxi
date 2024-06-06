@@ -189,7 +189,7 @@ public class ReservationService
                         IndividualName = new IndividualName
                         {
                             NameFirst = request.Reservation.Profile.FirstName,
-                            NameSur = request.Reservation.Profile.SurName,
+                            NameSur = request.Reservation.Profile.LastName,
                         },
                         DateOfBirth = request.Reservation.Profile.DateOfBirth,
                         PrimaryLanguageId = "R",
