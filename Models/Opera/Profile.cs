@@ -2,7 +2,6 @@ using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Models.Opera;
 
-[XmlRoot(Namespace = "profile.fidelio.3.0")]
 [XmlType(TypeName = "Profile")]
 public class Profile
 {
@@ -50,7 +49,7 @@ public class Profile
 
     [XmlElement("primaryLanguageID")]
     public string? PrimaryLanguageId { get; set; }
-    
+
     [XmlElement("mfResort")]
     public string? MfResort { get; set; }
 

@@ -5,6 +5,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -24,13 +25,22 @@ public class ReservationService
         _context = context;
     }
 
-    public async Task<string> Send(CreateReservationRequest request)
+    public async Task<string> Send(SendReservationRequest request)
     {
+        string reservationActionType = request.Reservation.ExternalId == null ? "NEW" : "CHANGE";
+        string mfReservationAction = request.Reservation.ExternalId == null ? "ADD" : "EDIT";
+        string reservationStatusType = request.Reservation.Status switch
+        {
+            ReservationStatusType.New or ReservationStatusType.Paid or ReservationStatusType.Approved => "RESERVED",
+            ReservationStatusType.Cancelled => "CANCELLED",
+            _ => "RESERVED"
+        };
+
         List<Rate> rates = [];
         int rateNum = 0;
         rates.AddRange(request.Reservation.RoomStay.Rates.Select(rate => new Rate
         {
-            reservationActionType = "NEW",
+            reservationActionType = reservationActionType,
             rateBasisTimeUnitType = "DAY",
             rateRPH = rateNum++,
             Amount = new Amount { CurrencyCode = "RUB", ValueNum = rate.Amount },
@@ -52,7 +62,7 @@ public class ReservationService
         Reservation reservation = new Reservation
         {
             MfShareAction = "NA",
-            MfReservationAction = "ADD",
+            MfReservationAction = mfReservationAction,
             HotelReference = new HotelReference
             {
                 HotelCode = request.Interface.HotelCode
@@ -85,7 +95,7 @@ public class ReservationService
             [
                 new ResComment
                 {
-                    ReservationActionType = "NEW",
+                    ReservationActionType = reservationActionType,
                     ResCommentRPH = 0,
                     СommentOriginatorCode = "SYSTEM",
                     GuestViewable = 1,
@@ -95,7 +105,7 @@ public class ReservationService
                 },
                 new ResComment
                 {
-                    ReservationActionType = "NEW",
+                    ReservationActionType = reservationActionType,
                     ResCommentRPH = 1,
                     СommentOriginatorCode = "SYSTEM",
                     GuestViewable = 1,
@@ -105,7 +115,7 @@ public class ReservationService
                 },
                 new ResComment
                 {
-                    ReservationActionType = "NEW",
+                    ReservationActionType = reservationActionType,
                     ResCommentRPH = 2,
                     СommentOriginatorCode = "SYSTEM",
                     GuestViewable = 1,
@@ -115,7 +125,7 @@ public class ReservationService
                 },
                 new ResComment
                 {
-                    ReservationActionType = "NEW",
+                    ReservationActionType = reservationActionType,
                     ResCommentRPH = 3,
                     СommentOriginatorCode = "SYSTEM",
                     GuestViewable = 1,
@@ -128,7 +138,7 @@ public class ReservationService
             [
                 new ResGuest
                 {
-                    ReservationActionType = "NEW",
+                    ReservationActionType = reservationActionType,
                     ResGuestRph = 0,
                     ProfileRphs = "0, 1",
                     InHouseTimeSpan = new TimeUnit
@@ -280,9 +290,9 @@ public class ReservationService
                 new RoomStay
                 {
                     mfShareAction = "NA",
-                    mfReservationAction = "ADD",
-                    reservationActionType = "NEW",
-                    reservationStatusType = "RESERVED",
+                    mfReservationAction = mfReservationAction,
+                    reservationActionType = reservationActionType,
+                    reservationStatusType = reservationStatusType,
                     roomStayRPH = 0,
                     roomInventoryCode = request.Reservation.RoomTypeCode,
                     TimeSpan = new TimeUnit
@@ -308,7 +318,7 @@ public class ReservationService
                     [
                         new RatePlan
                         {
-                            reservationActionType = "NEW",
+                            reservationActionType = reservationActionType,
                             ratePlanRPH = 0,
                             ratePlanCode = request.Reservation.RoomStay.RateCode,
                             TimeSpan = new TimeUnit

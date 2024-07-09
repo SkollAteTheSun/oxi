@@ -3,6 +3,7 @@ using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Extensions;
 using Kp.Ms.Oxi.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -91,6 +92,13 @@ if (!app.Environment.IsProduction())
 app.UseCors("cors");
 
 app.UseAuthorization();
+
+string? token = builder.Configuration.GetSection("Auth:Token").Get<string>();
+if (string.IsNullOrEmpty(token))
+{
+    throw new Exception("Auth token is not configured");
+}
+app.UseToken(token);
 
 app.MapControllers();
 
