@@ -127,7 +127,7 @@ public class ReservationService
                 {
                     ReservationActionType = reservationActionType,
                     ResCommentRPH = 3,
-                    СommentOriginatorCode = "SUPERVISOR",
+                    СommentOriginatorCode = "SYSTEM",
                     GuestViewable = 1,
                     Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
                     MfcommentType = "SYSTEM",
@@ -137,7 +137,7 @@ public class ReservationService
                 {
                     ReservationActionType = reservationActionType,
                     ResCommentRPH = 4,
-                    СommentOriginatorCode = "SYSTEM",
+                    СommentOriginatorCode = "SUPERVISOR",
                     GuestViewable = 1,
                     Comment = MakeComment(request),
                     MfcommentType = "RESERVATION",
