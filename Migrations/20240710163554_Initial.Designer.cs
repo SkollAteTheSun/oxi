@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Kp.Ms.Oxi.Migrations
 {
     [DbContext(typeof(DefaultContext))]
-    [Migration("20240606135715_Initial")]
+    [Migration("20240710163554_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -38,7 +38,13 @@ namespace Kp.Ms.Oxi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
-                        .HasColumnOrder(7);
+                        .HasColumnOrder(8);
+
+                    b.Property<string>("HotelCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("hotel_code")
+                        .HasColumnOrder(2);
 
                     b.Property<string>("InterfaceName")
                         .IsRequired()
@@ -50,43 +56,43 @@ namespace Kp.Ms.Oxi.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("request")
-                        .HasColumnOrder(9);
+                        .HasColumnOrder(10);
 
                     b.Property<bool>("Sended")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("sended")
-                        .HasColumnOrder(3);
+                        .HasColumnOrder(5);
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status")
-                        .HasColumnOrder(5);
+                        .HasColumnOrder(6);
 
                     b.Property<string>("TransactionId")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("transaction_id")
-                        .HasColumnOrder(2);
+                        .HasColumnOrder(3);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
-                        .HasColumnOrder(8);
+                        .HasColumnOrder(9);
 
                     b.Property<string>("Url")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("url")
-                        .HasColumnOrder(6);
+                        .HasColumnOrder(7);
 
                     b.Property<string>("Xml")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("xml")
-                        .HasColumnOrder(10);
+                        .HasColumnOrder(11);
 
                     b.HasKey("Id")
                         .HasName("pk_transaction");
