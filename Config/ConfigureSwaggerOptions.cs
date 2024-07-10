@@ -21,6 +21,30 @@ public class ConfigureSwaggerOptions : IConfigureNamedOptions<SwaggerGenOptions>
         {
             options.SwaggerDoc(description.GroupName, CreateVersionInfo(description));
             options.OperationFilter<TokenHeaderFilter>();
+            // options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            // {
+            //     In = ParameterLocation.Header,
+            //     Description = "Please enter a valid token",
+            //     Name = "Authorization",
+            //     Type = SecuritySchemeType.Http,
+            //     BearerFormat = "custom",
+            //     Scheme = "Bearer"
+            // });
+            // options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            // {
+            //     {
+            //         new OpenApiSecurityScheme
+            //         {
+            //             Reference = new OpenApiReference
+            //             {
+            //                 Type = ReferenceType.SecurityScheme,
+            //                 Id = "Bearer"
+            //             }
+            //         },
+            //         new string[] { }
+            //     }
+            // });
+            options.EnableAnnotations();
         }
     }
 

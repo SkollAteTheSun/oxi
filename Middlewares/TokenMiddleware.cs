@@ -1,3 +1,6 @@
+using Kp.Ms.Oxi.Attributes;
+using Microsoft.AspNetCore.Http.Features;
+
 namespace Kp.Ms.Oxi.Middlewares;
 
 public class TokenMiddleware
@@ -13,15 +16,24 @@ public class TokenMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        context.Request.Headers.TryGetValue("Token", out var requestToken);
-        if (string.IsNullOrEmpty(requestToken) || requestToken != _token)
+        var endpoint = context.Features.Get<IEndpointFeature>()?.Endpoint;
+        var attribute = endpoint?.Metadata.GetMetadata<AuthTokenAttribute>();
+        if (attribute == null)
         {
-            context.Response.StatusCode = 403;
-            await context.Response.WriteAsync("Token is invalid");
+            await _next.Invoke(context);
         }
         else
         {
-            await _next.Invoke(context);
+            context.Request.Headers.TryGetValue("Token", out var requestToken);
+            if (string.IsNullOrEmpty(requestToken) || requestToken != _token)
+            {
+                context.Response.StatusCode = 403;
+                await context.Response.WriteAsync("Token is invalid");
+            }
+            else
+            {
+                await _next.Invoke(context);
+            }
         }
     }
 }

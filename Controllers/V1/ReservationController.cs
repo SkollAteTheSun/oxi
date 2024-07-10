@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Kp.Ms.Oxi.Attributes;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
@@ -22,6 +23,7 @@ public class ReservationController : ControllerBase
     }
 
     [HttpPost]
+    [AuthToken]
     [SwaggerOperation(Summary = "Добавление / обновление брони")]
     public async Task<ActionResult<StatusDto>> Create([FromBody] SendReservationRequest request)
     {
