@@ -70,6 +70,21 @@ builder.Services.AddTransient<ReservationService>();
 builder.Services.AddTransient<MessageService>();
 builder.Services.AddTransient<TransactionService>();
 
+// string? token = builder.Configuration.GetSection("Auth:Token").Get<string>();
+// if (string.IsNullOrEmpty(token))
+// {
+//     throw new Exception("Auth token is not configured");
+// }
+// builder.Services.AddAuthentication(opt =>
+//     {
+//         opt.DefaultAuthenticateScheme = BearerTokenDefaults.AuthenticationScheme;
+//         opt.DefaultChallengeScheme = BearerTokenDefaults.AuthenticationScheme;
+//     })
+//     .AddBearerToken(options =>
+//     {
+//         options.Validate(token);
+//     });
+
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 if (!app.Environment.IsProduction())

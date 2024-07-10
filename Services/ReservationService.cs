@@ -132,6 +132,16 @@ public class ReservationService
                     Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
                     MfcommentType = "SYSTEM",
                     MfcommentDate = request.Reservation.CreatedAt
+                },
+                new ResComment
+                {
+                    ReservationActionType = reservationActionType,
+                    ResCommentRPH = 4,
+                    СommentOriginatorCode = "SUPERVISOR",
+                    GuestViewable = 1,
+                    Comment = MakeComment(request),
+                    MfcommentType = "RESERVATION",
+                    MfcommentDate = request.Reservation.CreatedAt
                 }
             ],
             ResGuests =
@@ -213,7 +223,7 @@ public class ReservationService
                         [
                             new ElectronicAddress
                             {
-                                ElectronicAddressType = "EMAILP",
+                                ElectronicAddressType = "EMAIL",
                                 Address = request.Reservation.Profile.Email,
                                 MfPrimary = "Y",
                                 Confirmation = 0
@@ -434,6 +444,7 @@ public class ReservationService
             {
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
+                HotelCode = request.Interface.HotelCode,
                 TransactionId = request.Interface.TransactionId,
                 InterfaceName = request.Interface.InterfaceName,
                 Status = request.Interface.Status,
@@ -447,5 +458,19 @@ public class ReservationService
         }
 
         return apiResponse;
+    }
+
+    private string MakeComment(SendReservationRequest request)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.Append("tot: ");
+        sb.Append(request.Reservation.PaymentAmount.ToString("0.0000"));
+        if (!string.IsNullOrEmpty(request.Reservation.Comment))
+        {
+            sb.Append('\n');
+            sb.Append(request.Reservation.Comment);
+        }
+
+        return sb.ToString();
     }
 }
