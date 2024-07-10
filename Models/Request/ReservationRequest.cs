@@ -36,4 +36,9 @@ public class ReservationRequest
 
     [Required]
     public ReservationStatusType Status { get; set; }
+
+    [Required]
+    public float PaymentAmount { get; set; }
+
+    public string? Comment { get; set; }
 }
