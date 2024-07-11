@@ -8,7 +8,7 @@ public class Reservation
 {
     [XmlAttribute("mfShareAction")]
     public required string MfShareAction { get; set; }
-    
+
     [XmlAttribute("mfReservationAction")]
     public required string MfReservationAction { get; set; }
 
@@ -26,7 +26,7 @@ public class Reservation
 
     [XmlElement("originalBookingDate")]
     public DateTime OriginalBookingDate { get; set; }
-    
+
     [XmlElement("StayDateRange")]
     public required TimeUnit StayDateRange { get; set; }
 
@@ -49,7 +49,11 @@ public class Reservation
     [XmlArray("RoomStays")]
     [XmlArrayItem("RoomStay")]
     public List<RoomStay> RoomStays { get; set; } = [];
-    
+
+    [XmlArray("Udfs")]
+    [XmlArrayItem("Udf", Namespace = "udf.fidelio.2.0")]
+    public List<Udf> Udfs { get; set; } = [];
+
     [XmlElement("mfupdateDate")]
     public DateTime MfupdateDate { get; set; }
 
