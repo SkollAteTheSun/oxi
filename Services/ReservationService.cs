@@ -200,7 +200,7 @@ public class ReservationService
                         MiniProfile = 0,
                         PseudoProfile = 0,
                         ReplaceAddress = 0,
-                        ProfileId = request.Reservation.Profile.Id,
+                        ProfileId = request.Reservation.Profile.ExternalId,
                         CreatorCode = "SUPERVISOR",
                         CreatedDate = request.Reservation.Profile.CreatedAt,
                         LastUpdaterCode = "ORS",
@@ -264,7 +264,7 @@ public class ReservationService
                         MiniProfile = 0,
                         PseudoProfile = 0,
                         ReplaceAddress = 0,
-                        ProfileId = 1,
+                        ProfileId = "1", // возможно надо реальный id из оперы настраивать в рамках интерфейса
                         CreatorCode = "SUPERVISOR",
                         CreatedDate = new DateTime(2020, 1, 1),
                         LastUpdaterCode = "ORS",
