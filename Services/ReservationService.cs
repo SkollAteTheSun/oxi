@@ -371,6 +371,20 @@ public class ReservationService
                     mfconfidentialRate = 0
                 }
             ],
+
+            Udfs = [
+                new Udf
+                {
+                    UdfDefinition = new UdfDefinition
+                    {
+                        Module = "RESERVATION",
+                        PmsTableName = "RESERVATION_NAME",
+                        PmsColumnName = "UDFC35"
+                    },
+                    UdfValue = "00"
+                }
+            ],
+
             MfupdateDate = DateTime.Now,
             MfComplementary = 0
         };
