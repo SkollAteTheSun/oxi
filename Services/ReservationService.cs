@@ -200,7 +200,7 @@ public class ReservationService
                         MiniProfile = 0,
                         PseudoProfile = 0,
                         ReplaceAddress = 0,
-                        ProfileId = request.Reservation.Profile.ExternalId,
+                        ProfileId = request.Reservation.Profile.Id,
                         CreatorCode = "SUPERVISOR",
                         CreatedDate = request.Reservation.Profile.CreatedAt,
                         LastUpdaterCode = "ORS",
@@ -214,8 +214,7 @@ public class ReservationService
                         DateOfBirth = request.Reservation.Profile.DateOfBirth,
                         PrimaryLanguageId = "R",
                         MfResort = request.Interface.HotelCode,
-                        MfResortProfileId = request.Reservation.Profile.ExternalId ?? string.Empty,
-                        MfNameCode = "112233",
+                        MfResortProfileId = request.Reservation.Profile.ExternalId,
                         MfAllowMail = "YES",
                         MfAllowEMail = "NO",
                         MfGuestPriv = "NO",
@@ -264,7 +263,7 @@ public class ReservationService
                         MiniProfile = 0,
                         PseudoProfile = 0,
                         ReplaceAddress = 0,
-                        ProfileId = "1", // возможно надо реальный id из оперы настраивать в рамках интерфейса
+                        ProfileId = 1,
                         CreatorCode = "SUPERVISOR",
                         CreatedDate = new DateTime(2020, 1, 1),
                         LastUpdaterCode = "ORS",
@@ -273,9 +272,9 @@ public class ReservationService
                         IndividualName = new IndividualName
                         {
                             NameFirst = "KP Reservation",
-                            NameSur = "KP Reservation",
+                            NameSur = ""
                         },
-                        MfNameCode = "KP Reservation",
+                        MfResortProfileId = "424732", // возможно надо реальный id из оперы настраивать в рамках интерфейса
                         MfAllowMail = "NO",
                         MfAllowEMail = "NO",
                         MfGuestPriv = "NO",
