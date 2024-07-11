@@ -24,7 +24,7 @@ public class Profile
     public int ReplaceAddress { get; set; }
 
     [XmlElement("profileID")]
-    public string? ProfileId { get; set; }
+    public ulong ProfileId { get; set; }
 
     [XmlElement("creatorCode")]
     public required string CreatorCode { get; set; }
