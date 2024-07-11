@@ -5,6 +5,7 @@ using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Extensions;
 using Kp.Ms.Oxi.Services;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,7 +37,36 @@ builder.Services.AddDbContext<DefaultContext>(opt =>
 
 builder.Services
     .AddControllers()
-    .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); });
+    .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // To preserve the default behavior, capture the original delegate to call later.
+        var builtInFactory = options.InvalidModelStateResponseFactory;
+
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+
+            foreach (var item in context.ModelState)
+            {
+                if (item.Value.ValidationState != ModelValidationState.Invalid)
+                {
+                    continue;
+                }
+
+                string errors = string.Join(" | ", item.Value.Errors
+                    .Select(e => e.ErrorMessage));
+                logger.LogError("Model state validation error. Key: {Key}. Errors: {Errors}", item.Key, errors);
+            }
+
+            // Invoke the default behavior, which produces a ValidationProblemDetails
+            // response.
+            // To produce a custom response, return a different implementation of
+            // IActionResult instead.
+            return builtInFactory(context);
+        };
+    });
 
 builder.Services
     .AddApiVersioning(options =>
@@ -69,21 +99,6 @@ builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
 builder.Services.AddTransient<MessageService>();
 builder.Services.AddTransient<TransactionService>();
-
-// string? token = builder.Configuration.GetSection("Auth:Token").Get<string>();
-// if (string.IsNullOrEmpty(token))
-// {
-//     throw new Exception("Auth token is not configured");
-// }
-// builder.Services.AddAuthentication(opt =>
-//     {
-//         opt.DefaultAuthenticateScheme = BearerTokenDefaults.AuthenticationScheme;
-//         opt.DefaultChallengeScheme = BearerTokenDefaults.AuthenticationScheme;
-//     })
-//     .AddBearerToken(options =>
-//     {
-//         options.Validate(token);
-//     });
 
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
