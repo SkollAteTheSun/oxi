@@ -72,6 +72,13 @@ public class MessageService
             Response = message
         };
 
+        // если мы пытаемся апдейтить бронь которой нет в опере, повторно такие попытки делать не надо, поэтому статус error
+        // TODO сделать enum на статусы для второго апи
+        if (message.Contains("Reservation not found for External system"))
+        {
+            request.Status = "error";
+        }
+
         XmlElement? xRoot = xml.DocumentElement;
         if (xRoot != null)
         {
