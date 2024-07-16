@@ -28,7 +28,7 @@ public class TransactionController : ControllerBase
         Transaction? transaction = await _transactionService.FirstOrDefault();
         if (transaction == null)
         {
-            return NotFound();
+            return NoContent();
         }
 
         TransactionDto dto = TransactionConverter.Convert(transaction);
