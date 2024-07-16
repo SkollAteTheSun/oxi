@@ -20,6 +20,8 @@ public class ConfigureSwaggerOptions : IConfigureNamedOptions<SwaggerGenOptions>
         foreach (var description in _provider.ApiVersionDescriptions)
         {
             options.SwaggerDoc(description.GroupName, CreateVersionInfo(description));
+            options.OperationFilter<TokenHeaderFilter>();
+            options.EnableAnnotations();
         }
     }
 
@@ -32,7 +34,7 @@ public class ConfigureSwaggerOptions : IConfigureNamedOptions<SwaggerGenOptions>
     {
         var info = new OpenApiInfo()
         {
-            Title = "Terminal API",
+            Title = "OXI API",
             Version = description.ApiVersion.ToString()
         };
 
