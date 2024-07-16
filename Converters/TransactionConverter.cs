@@ -9,6 +9,7 @@ public static class TransactionConverter
     {
         return new TransactionDto
         {
+            Id = transaction.Id,
             Url = transaction.Url,
             Xml = transaction.Xml
         };
