@@ -506,10 +506,10 @@ public class ReservationService
     {
         StringBuilder sb = new StringBuilder();
         sb.Append("tot: ");
-        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.0000"));
+        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
         sb.Append('\n');
         sb.Append("paid: ");
-        sb.Append(request.Reservation.PaymentAmount.ToString("0.0000"));
+        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
         if (!string.IsNullOrEmpty(request.Reservation.Comment))
         {
             sb.Append('\n');
