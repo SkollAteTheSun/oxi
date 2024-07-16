@@ -268,13 +268,13 @@ public class ReservationService
                         CreatedDate = new DateTime(2020, 1, 1),
                         LastUpdaterCode = "ORS",
                         LastUpdated = new DateTime(2020, 1, 1),
-                        GenericName = "KP Reservation",
+                        GenericName = request.Interface.TravelAgentName,
                         IndividualName = new IndividualName
                         {
-                            NameFirst = "KP Reservation",
+                            NameFirst = request.Interface.TravelAgentName,
                             NameSur = ""
                         },
-                        MfResortProfileId = "424732", // возможно надо реальный id из оперы настраивать в рамках интерфейса
+                        MfResortProfileId = request.Interface.TravelAgentId.ToString(),
                         MfAllowMail = "NO",
                         MfAllowEMail = "NO",
                         MfGuestPriv = "NO",
@@ -371,6 +371,25 @@ public class ReservationService
                 }
             ],
 
+            /*
+             * Module = "RESERVATION" PmsTableName = "RESERVATION_NAME"
+             * "UDFC35" // Resort fee
+             * "UDFC33" // GDS Record Loc.
+             * "UDFC30" // Ref Dossier
+             * "UDFC22" // Розовая плашка под Source
+             * "UDFC16" // Auto Code
+             * "UDFC15" // PAY ID
+             * "UDFC14" // Payment Type
+             * "UDFC13" // Currency
+             * "UDFC12" // Alias
+             * "UDFC10" // TARS Tariff Name
+             * "UDFC09" // TARS Tariff Code
+             * "UDFC06" // Telephone
+             * "UDFC05" // Reserve Par
+             * "UDFC04" // Voucher #
+             * "UDFC02" // Par
+             * "UDFC01" // Raison RTC
+             */
             Udfs = [
                 new Udf
                 {
@@ -378,9 +397,19 @@ public class ReservationService
                     {
                         Module = "RESERVATION",
                         PmsTableName = "RESERVATION_NAME",
-                        PmsColumnName = "UDFC35"
+                        PmsColumnName = "UDFC35" // Resort fee
                     },
                     UdfValue = "00"
+                },
+                new Udf
+                {
+                    UdfDefinition = new UdfDefinition
+                    {
+                        Module = "RESERVATION",
+                        PmsTableName = "RESERVATION_NAME",
+                        PmsColumnName = "UDFC04" // Voucher #
+                    },
+                    UdfValue = request.Reservation.ReservationNumber
                 }
             ],
 
