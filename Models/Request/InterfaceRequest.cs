@@ -18,4 +18,10 @@ public class InterfaceRequest
 
     [Required]
     public required string HotelCode { get; set; }
+
+    [Required]
+    public required string TravelAgentName { get; set; }
+
+    [Required]
+    public required int TravelAgentId { get; set; }
 }
