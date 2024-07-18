@@ -15,7 +15,7 @@ dotnet publish -r linux-x64 -c Release --property:PublishDir=./publish /p:Enviro
 
 Скопировать в директорию с сервисом:
 ```bash
-rm -rf /root/ms/oxi && mv ./publish /root/ms/oxi
+rm -rf /var/www/oxi.ms.karousel.ru/web && mv ./publish /var/www/oxi.ms.karousel.ru/web
 ```
 
 ```bash

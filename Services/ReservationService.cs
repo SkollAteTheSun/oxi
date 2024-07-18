@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Xml;
 using System.Xml.Serialization;
+using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
@@ -205,14 +205,20 @@ public class ReservationService
                         CreatedDate = request.Reservation.Profile.CreatedAt,
                         LastUpdaterCode = "ORS",
                         LastUpdated = request.Reservation.Profile.UpdatedAt,
-                        GenericName = request.Reservation.Profile.LastName,
+                        GenericName = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
+                        PrimaryLanguageId = "E",
                         IndividualName = new IndividualName
                         {
+                            NameFirst = CyrillicToLatin.Convert(request.Reservation.Profile.FirstName),
+                            NameSur = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
+                        },
+                        AlternateLanguageIDs = "R",
+                        MfNationalName = new NationalName
+                        {
                             NameFirst = request.Reservation.Profile.FirstName,
-                            NameSur = request.Reservation.Profile.LastName,
+                            NameLast = request.Reservation.Profile.LastName,
                         },
                         DateOfBirth = request.Reservation.Profile.DateOfBirth,
-                        PrimaryLanguageId = "R",
                         MfResort = request.Interface.HotelCode,
                         MfResortProfileId = request.Reservation.Profile.ExternalId,
                         MfAllowMail = "YES",
@@ -449,7 +455,7 @@ public class ReservationService
             }
         }
 
-        string? apiResponse = null;
+        string? apiResponse;
 
         var queryParams = new Dictionary<string, string>
         {
@@ -502,7 +508,7 @@ public class ReservationService
         return apiResponse;
     }
 
-    private string MakeComment(SendReservationRequest request)
+    private static string MakeComment(SendReservationRequest request)
     {
         StringBuilder sb = new StringBuilder();
         sb.Append("tot: ");
