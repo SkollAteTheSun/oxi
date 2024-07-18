@@ -41,14 +41,20 @@ public class Profile
     [XmlElement("genericName")]
     public required string GenericName { get; set; }
 
+    [XmlElement("primaryLanguageID")]
+    public string? PrimaryLanguageId { get; set; }
+
     [XmlElement("IndividualName")]
     public required IndividualName IndividualName { get; set; }
 
+    [XmlElement("alternateLanguageIDs")]
+    public string? AlternateLanguageIDs { get; set; }
+
+    [XmlElement("mfNationalName")]
+    public NationalName? MfNationalName { get; set; }
+
     [XmlElement("dateOfBirth")]
     public DateOnly DateOfBirth { get; set; }
-
-    [XmlElement("primaryLanguageID")]
-    public string? PrimaryLanguageId { get; set; }
 
     [XmlElement("mfResort")]
     public string? MfResort { get; set; }
