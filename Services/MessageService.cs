@@ -2,7 +2,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
+using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Request;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -10,11 +13,13 @@ public class MessageService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<MessageService> _logger;
+    private readonly DefaultContext _context;
 
-    public MessageService(IConfiguration configuration, ILogger<MessageService> logger)
+    public MessageService(IConfiguration configuration, ILogger<MessageService> logger, DefaultContext context)
     {
         _configuration = configuration;
         _logger = logger;
+        _context = context;
     }
 
     public async Task<bool> Receive(string message)
@@ -64,10 +69,12 @@ public class MessageService
             return false;
         }
 
+        string transactionId = labelParts[2];
+
         TransactionGetResponseRequest request = new TransactionGetResponseRequest
         {
             Token = token,
-            TransactionId = labelParts[2],
+            TransactionId = transactionId,
             Status = labelParts[3] == "SUCCESS" ? "success" : "fail",
             Response = message
         };
@@ -119,7 +126,17 @@ public class MessageService
         using var response = await httpClient.SendAsync(requestMessage);
         string apiResponse = await response.Content.ReadAsStringAsync();
 
+        response.EnsureSuccessStatusCode();
+
         _logger.LogInformation("Response of booking api transaction get response: {Response}", Regex.Unescape(apiResponse));
+
+        Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.Id == long.Parse(transactionId));
+        if (transaction != null)
+        {
+            transaction.Received = true;
+            transaction.ReceivedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+        }
 
         return true;
     }

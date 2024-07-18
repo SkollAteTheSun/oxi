@@ -6,6 +6,9 @@ public class Transaction
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool Sended { get; set; }
+    public DateTime SendedAt { get; set; }
+    public bool Received { get; set; }
+    public DateTime ReceivedAt { get; set; }
     public required string HotelCode { get; set; }
     public required string TransactionId { get; set; }
     public required string InterfaceName { get; set; }
