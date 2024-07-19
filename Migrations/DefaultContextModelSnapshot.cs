@@ -27,69 +27,72 @@ namespace Kp.Ms.Oxi.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasColumnOrder(1);
+                        .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasColumnOrder(8);
+                        .HasColumnName("created_at");
 
                     b.Property<string>("HotelCode")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("hotel_code")
-                        .HasColumnOrder(2);
+                        .HasColumnName("hotel_code");
 
                     b.Property<string>("InterfaceName")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("interface_name")
-                        .HasColumnOrder(4);
+                        .HasColumnName("interface_name");
+
+                    b.Property<bool>("Received")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("received");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
 
                     b.Property<string>("Request")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("request")
-                        .HasColumnOrder(10);
+                        .HasColumnName("request");
 
                     b.Property<bool>("Sended")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
-                        .HasColumnName("sended")
-                        .HasColumnOrder(5);
+                        .HasColumnName("sended");
+
+                    b.Property<DateTime?>("SendedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sended_at");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("status")
-                        .HasColumnOrder(6);
+                        .HasColumnName("status");
 
                     b.Property<string>("TransactionId")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("transaction_id")
-                        .HasColumnOrder(3);
+                        .HasColumnName("transaction_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasColumnOrder(9);
+                        .HasColumnName("updated_at");
 
                     b.Property<string>("Url")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("url")
-                        .HasColumnOrder(7);
+                        .HasColumnName("url");
 
                     b.Property<string>("Xml")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("xml")
-                        .HasColumnOrder(11);
+                        .HasColumnName("xml");
 
                     b.HasKey("Id")
                         .HasName("pk_transaction");

@@ -419,7 +419,7 @@ public class ReservationService
                 }
             ],
 
-            MfupdateDate = DateTime.Now,
+            MfupdateDate = DateTime.UtcNow,
             MfComplementary = 0
         };
 

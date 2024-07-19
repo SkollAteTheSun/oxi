@@ -126,15 +126,13 @@ public class MessageService
         using var response = await httpClient.SendAsync(requestMessage);
         string apiResponse = await response.Content.ReadAsStringAsync();
 
-        response.EnsureSuccessStatusCode();
-
         _logger.LogInformation("Response of booking api transaction get response: {Response}", Regex.Unescape(apiResponse));
 
-        Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.Id == long.Parse(transactionId));
+        Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.TransactionId == transactionId);
         if (transaction != null)
         {
             transaction.Received = true;
-            transaction.ReceivedAt = DateTime.Now;
+            transaction.ReceivedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
 
