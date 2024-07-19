@@ -101,6 +101,12 @@ public class MessageService
                         XmlNode? resultMsgType = resultId.Attributes?.GetNamedItem("resultMsgType");
                         foreach (XmlNode resultIdChild in resultId.ChildNodes)
                         {
+                            // skip travel agent
+                            if (resultIdChild.Name == "crsId" && resultIdChild.InnerText == "1")
+                            {
+                                break;
+                            }
+
                             if (resultIdChild.Name == "pmsId")
                             {
                                 switch (resultMsgType?.Value)
