@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Kp.Ms.Oxi.Attributes;
 using Kp.Ms.Oxi.Converters;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Response;
@@ -22,6 +23,7 @@ public class TransactionController : ControllerBase
     }
 
     [HttpGet]
+    [AuthToken]
     [SwaggerOperation(Summary = "Получение транзакции")]
     public async Task<ActionResult<TransactionDto>> GetTransaction()
     {
