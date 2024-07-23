@@ -19,14 +19,17 @@ public class TransactionService
 
     public async Task<Transaction?> FirstOrDefault()
     {
+        DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
         Transaction? transaction = await _context.Transactions
-            .Where(t => t.Sended == false)
+            .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
+            .Where(t => t.Received == false)
             .OrderBy(t=> t.Id)
             .FirstOrDefaultAsync();
 
         if (transaction == null) return transaction;
 
         transaction.Sended = true;
+        transaction.SendedAt = DateTime.UtcNow;
         transaction.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
