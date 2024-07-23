@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Kp.Ms.Oxi.Attributes;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -19,6 +20,7 @@ public class MessageController : ControllerBase
     }
 
     [HttpPost("receive")]
+    [AuthToken]
     [SwaggerOperation(Summary = "Получение сообщения")]
     public async Task<ActionResult> Receive()
     {
