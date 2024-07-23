@@ -75,7 +75,7 @@ public class MessageService
         {
             Token = token,
             TransactionId = transactionId,
-            Status = labelParts[3] == "SUCCESS" ? "success" : "fail",
+            Status = labelParts[3].ToLower(),
             Response = message
         };
 
