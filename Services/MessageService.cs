@@ -71,11 +71,26 @@ public class MessageService
 
         string transactionId = labelParts[2];
 
+        string statusFromOpera;
+        switch (labelParts[3])
+        {
+            case "SUCCESS":
+            case "ERROR":
+                statusFromOpera = labelParts[3].ToLower();
+                break;
+            case "FAILED":
+                statusFromOpera = "fail";
+                break;
+            default:
+                statusFromOpera = "error";
+                break;
+        }
+
         TransactionGetResponseRequest request = new TransactionGetResponseRequest
         {
             Token = token,
             TransactionId = transactionId,
-            Status = labelParts[3] == "SUCCESS" ? "success" : "fail",
+            Status = statusFromOpera,
             Response = message
         };
 
