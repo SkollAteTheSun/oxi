@@ -19,12 +19,19 @@ public class MessageController : ControllerBase
     }
 
     [HttpPost("receive")]
-    [SwaggerOperation(Summary = "Получение сообщения")]
+    [SwaggerOperation(Summary = "Получение сообщения и отправка в букинг")]
     public async Task<ActionResult> Receive()
     {
         using StreamReader reader = new(Request.Body);
         string message = await reader.ReadToEndAsync();
         await _messageService.Receive(message);
+        return Ok();
+    }
+
+    [HttpGet("receive")]
+    [SwaggerOperation(Summary = "Получение сообщения в GET")]
+    public ActionResult ReceiveGet()
+    {
         return Ok();
     }
 }
