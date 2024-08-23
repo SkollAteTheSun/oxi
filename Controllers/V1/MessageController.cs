@@ -32,6 +32,7 @@ public class MessageController : ControllerBase
     [SwaggerOperation(Summary = "Получение сообщения в GET")]
     public ActionResult ReceiveGet()
     {
+        _messageService.ReceiveGet($"{Request.Path.Value}{Request.QueryString.ToString()}");
         return Ok();
     }
 }

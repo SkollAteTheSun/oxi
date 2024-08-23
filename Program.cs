@@ -4,11 +4,17 @@ using Asp.Versioning.ApiExplorer;
 using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Extensions;
+using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOptions<OpenSearchOptions>()
+    .Bind(builder.Configuration.GetSection(OpenSearchOptions.Position))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 string? bookingConnectionString = builder.Configuration.GetConnectionString("Booking");
 if (string.IsNullOrEmpty(bookingConnectionString))
@@ -95,6 +101,9 @@ builder.Services.AddCors(c => c.AddPolicy("cors", opt =>
     opt.WithOrigins(builder.Configuration.GetSection("Cors:Urls").Get<string[]>()!);
 }));
 
+builder.Services.AddOpenSearch(builder.Configuration);
+
+builder.Services.AddSingleton<LogService>();
 builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
 builder.Services.AddTransient<MessageService>();

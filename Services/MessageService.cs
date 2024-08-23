@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -6,25 +7,26 @@ using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.EntityFrameworkCore;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Kp.Ms.Oxi.Services;
 
 public class MessageService
 {
     private readonly IConfiguration _configuration;
-    private readonly ILogger<MessageService> _logger;
     private readonly DefaultContext _context;
+    private readonly LogService _logService;
 
-    public MessageService(IConfiguration configuration, ILogger<MessageService> logger, DefaultContext context)
+    public MessageService(IConfiguration configuration, DefaultContext context, LogService logService)
     {
         _configuration = configuration;
-        _logger = logger;
         _context = context;
+        _logService = logService;
     }
 
     public async Task<bool> Receive(string message)
     {
-        _logger.LogInformation("Input message: \n{Message}", message);
+        _logService.Log(LogLevel.Information, $"Input message: \n{message}");
 
         XmlDocument xml = new XmlDocument();
         try
@@ -33,13 +35,13 @@ public class MessageService
         }
         catch (Exception ex)
         {
-            _logger.LogError("Xml parse error: {ErrorMessage}", ex.Message);
+            _logService.Log(LogLevel.Error, $"Xml parse error: {ex.Message}");
             return false;
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))
         {
-            _logger.LogError("Label not exists");
+            _logService.Log(LogLevel.Error, "Label not exists");
             return false;
         }
 
@@ -65,7 +67,7 @@ public class MessageService
         }
         catch (Exception ex)
         {
-            _logger.LogError("Configuration error: {Error}", ex.Message);
+            _logService.Log(LogLevel.Error, $"Configuration error: {ex.Message}");
             return false;
         }
 
@@ -140,14 +142,17 @@ public class MessageService
             }
         }
 
-        _logger.LogInformation("Request to booking api transaction get response: {Request}", JsonSerializer.Serialize(request));
+        JsonSerializerOptions jso = new JsonSerializerOptions();
+        jso.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+
+        _logService.Log(LogLevel.Information, $"Request to booking api transaction get response: {JsonSerializer.Serialize(request, jso)}");
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, baseUrl + transactionGetResponseUrl);
         requestMessage.Content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
         using var response = await httpClient.SendAsync(requestMessage);
         string apiResponse = await response.Content.ReadAsStringAsync();
 
-        _logger.LogInformation("Response of booking api transaction get response: {Response}", Regex.Unescape(apiResponse));
+        _logService.Log(LogLevel.Information, $"Response of booking api transaction get response: {Regex.Unescape(apiResponse)}");
 
         Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.TransactionId == transactionId);
         if (transaction != null)
@@ -158,5 +163,10 @@ public class MessageService
         }
 
         return true;
+    }
+
+    public void ReceiveGet(string message)
+    {
+        _logService.Log(LogLevel.Information, $"Request url: \n{message}");
     }
 }
