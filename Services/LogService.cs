@@ -25,12 +25,9 @@ public class LogService
         {
             _logger.Log(logLevel, "{Message}", message);
 
-            DateTime nowMsk =
-                TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time"));
-
             _openSearchClient.Index(new
             {
-                date = nowMsk.ToString("yyyy-MM-ddTHH:mm:ss"),
+                date = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss"),
                 message = message,
                 level = logLevel
             }, idx => idx.Index(_openSearchOptions.LogIndex));
