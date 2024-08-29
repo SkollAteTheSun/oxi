@@ -27,6 +27,8 @@ public class ReservationService
 
     public async Task<string> Send(SendReservationRequest request)
     {
+        MakeTransactionId(request);
+
         string reservationActionType = request.Reservation.ExternalId == null ? "NEW" : "CHANGE";
         string mfReservationAction = request.Reservation.ExternalId == null ? "ADD" : "EDIT";
         string reservationStatusType = request.Reservation.Status switch
@@ -188,118 +190,7 @@ public class ReservationService
                     CommissionPaidTo = "N"
                 }
             ],
-            ResProfiles =
-            [
-                new ResProfile
-                {
-                    Profile = new Profile
-                    {
-                        ProfileType = "CONTACT",
-                        Gender = "UNKNOWN",
-                        MultiProperty = 0,
-                        MiniProfile = 0,
-                        PseudoProfile = 0,
-                        ReplaceAddress = 0,
-                        ProfileId = request.Reservation.Profile.Id,
-                        CreatorCode = "SUPERVISOR",
-                        CreatedDate = request.Reservation.Profile.CreatedAt,
-                        LastUpdaterCode = "ORS",
-                        LastUpdated = request.Reservation.Profile.UpdatedAt,
-                        GenericName = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
-                        PrimaryLanguageId = "E",
-                        IndividualName = new IndividualName
-                        {
-                            NameFirst = CyrillicToLatin.Convert(request.Reservation.Profile.FirstName),
-                            NameSur = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
-                        },
-                        AlternateLanguageIDs = "R",
-                        MfNationalName = new NationalName
-                        {
-                            NameFirst = request.Reservation.Profile.FirstName,
-                            NameLast = request.Reservation.Profile.LastName,
-                        },
-                        DateOfBirth = request.Reservation.Profile.DateOfBirth,
-                        MfResort = request.Interface.HotelCode,
-                        MfResortProfileId = request.Reservation.Profile.ExternalId,
-                        MfAllowMail = "YES",
-                        MfAllowEMail = "NO",
-                        MfGuestPriv = "NO",
-                        ElectronicAddresses =
-                        [
-                            new ElectronicAddress
-                            {
-                                ElectronicAddressType = "EMAIL",
-                                Address = request.Reservation.Profile.Email,
-                                MfPrimary = "Y",
-                                Confirmation = 0
-                            }
-                        ],
-                        PhoneNumbers =
-                        [
-                            new PhoneNumber
-                            {
-                                PhoneNumberType = "MOBILE",
-                                Number = request.Reservation.Profile.Phone,
-                                MfPrimary = "Y",
-                                Confirmation = 0
-                            }
-                        ],
-                        MfAllowPhone = 0,
-                        MfAllowSMS = 0,
-                        PrivacyOption = new PrivacyOption
-                        {
-                            mfAllowMail = "Y",
-                            mfAllowEMail = "Y",
-                            mfAllowPhone = 1,
-                            mfAllowSMS = 1,
-                            mfAllowHistory = 1,
-                            mfAllowMarketResearch = 1,
-                            mfAllowThirdParty = 1
-                        }
-                    },
-                    resProfileRPH = 0
-                },
-                new ResProfile
-                {
-                    Profile = new Profile
-                    {
-                        ProfileType = "TRAVEL",
-                        Gender = "UNKNOWN",
-                        MultiProperty = 0,
-                        MiniProfile = 0,
-                        PseudoProfile = 0,
-                        ReplaceAddress = 0,
-                        ProfileId = 1,
-                        CreatorCode = "SUPERVISOR",
-                        CreatedDate = new DateTime(2020, 1, 1),
-                        LastUpdaterCode = "ORS",
-                        LastUpdated = new DateTime(2020, 1, 1),
-                        GenericName = request.Interface.TravelAgentName,
-                        IndividualName = new IndividualName
-                        {
-                            NameFirst = request.Interface.TravelAgentName,
-                            NameSur = ""
-                        },
-                        MfResortProfileId = request.Interface.TravelAgentId.ToString(),
-                        MfAllowMail = "NO",
-                        MfAllowEMail = "NO",
-                        MfGuestPriv = "NO",
-                        MfAllowPhone = 0,
-                        MfAllowSMS = 0,
-                        PrivacyOption = new PrivacyOption
-                        {
-                            mfAllowMail = "N",
-                            mfAllowEMail = "N",
-                            mfAllowPhone = 0,
-                            mfAllowSMS = 0,
-                            mfAllowHistory = 0,
-                            mfAllowMarketResearch = 0,
-                            mfAllowThirdParty = 0
-                        }
-                    },
-                    resProfileRPH = 1
-                }
-            ],
+            ResProfiles = MakeProfiles(request),
             RoomStays =
             [
                 new RoomStay
@@ -523,5 +414,178 @@ public class ReservationService
         }
 
         return sb.ToString();
+    }
+
+    private static void MakeTransactionId(SendReservationRequest request)
+    {
+        request.Interface.TransactionId = "BK" + request.Interface.TransactionId;
+    }
+
+    private static List<ResProfile> MakeProfiles(SendReservationRequest request)
+    {
+        List<ResProfile> profiles = [];
+
+        ResProfile contact = new ResProfile
+        {
+            Profile = new Profile
+            {
+                ProfileType = ProfileType.Contact.ToString().ToUpper(),
+                Gender = "UNKNOWN",
+                MultiProperty = 0,
+                MiniProfile = 0,
+                PseudoProfile = 0,
+                ReplaceAddress = 0,
+                ProfileId = request.Reservation.Profile.Id,
+                CreatorCode = "SUPERVISOR",
+                CreatedDate = request.Reservation.Profile.CreatedAt,
+                LastUpdaterCode = "ORS",
+                LastUpdated = request.Reservation.Profile.UpdatedAt,
+                GenericName = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
+                PrimaryLanguageId = "E",
+                IndividualName = new IndividualName
+                {
+                    NameFirst = CyrillicToLatin.Convert(request.Reservation.Profile.FirstName),
+                    NameSur = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
+                },
+                AlternateLanguageIDs = "R",
+                MfNationalName = new NationalName
+                {
+                    NameFirst = request.Reservation.Profile.FirstName,
+                    NameLast = request.Reservation.Profile.LastName,
+                },
+                DateOfBirth = request.Reservation.Profile.DateOfBirth,
+                MfResort = request.Interface.HotelCode,
+                MfResortProfileId = request.Reservation.Profile.ExternalId,
+                MfAllowMail = "YES",
+                MfAllowEMail = "NO",
+                MfGuestPriv = "NO",
+                ElectronicAddresses =
+                [
+                    new ElectronicAddress
+                    {
+                        ElectronicAddressType = "EMAIL",
+                        Address = request.Reservation.Profile.Email,
+                        MfPrimary = "Y",
+                        Confirmation = 0
+                    }
+                ],
+                PhoneNumbers =
+                [
+                    new PhoneNumber
+                    {
+                        PhoneNumberType = "MOBILE",
+                        Number = request.Reservation.Profile.Phone,
+                        MfPrimary = "Y",
+                        Confirmation = 0
+                    }
+                ],
+                MfAllowPhone = 0,
+                MfAllowSMS = 0,
+                PrivacyOption = new PrivacyOption
+                {
+                    mfAllowMail = "Y",
+                    mfAllowEMail = "Y",
+                    mfAllowPhone = 1,
+                    mfAllowSMS = 1,
+                    mfAllowHistory = 1,
+                    mfAllowMarketResearch = 1,
+                    mfAllowThirdParty = 1
+                }
+            },
+            resProfileRPH = 0
+        };
+        profiles.Add(contact);
+
+        if (request.Interface is { TravelAgentName: not null, TravelAgentId: not null })
+        {
+            ResProfile travelAgent = new ResProfile
+            {
+                Profile = new Profile
+                {
+                    ProfileType = ProfileType.Travel.ToString().ToUpper(),
+                    Gender = "UNKNOWN",
+                    MultiProperty = 0,
+                    MiniProfile = 0,
+                    PseudoProfile = 0,
+                    ReplaceAddress = 0,
+                    ProfileId = 1,
+                    CreatorCode = "SUPERVISOR",
+                    CreatedDate = new DateTime(2020, 1, 1),
+                    LastUpdaterCode = "ORS",
+                    LastUpdated = new DateTime(2020, 1, 1),
+                    GenericName = request.Interface.TravelAgentName,
+                    IndividualName = new IndividualName
+                    {
+                        NameFirst = request.Interface.TravelAgentName,
+                        NameSur = ""
+                    },
+                    MfResortProfileId = request.Interface.TravelAgentId.ToString(),
+                    MfAllowMail = "NO",
+                    MfAllowEMail = "NO",
+                    MfGuestPriv = "NO",
+                    MfAllowPhone = 0,
+                    MfAllowSMS = 0,
+                    PrivacyOption = new PrivacyOption
+                    {
+                        mfAllowMail = "N",
+                        mfAllowEMail = "N",
+                        mfAllowPhone = 0,
+                        mfAllowSMS = 0,
+                        mfAllowHistory = 0,
+                        mfAllowMarketResearch = 0,
+                        mfAllowThirdParty = 0
+                    }
+                },
+                resProfileRPH = profiles.Count
+            };
+            profiles.Add(travelAgent);
+        }
+
+        if (request.Interface is { SourceName: not null, SourceId: not null })
+        {
+            ResProfile source = new ResProfile
+            {
+                Profile = new Profile
+                {
+                    ProfileType = ProfileType.Wholesaler.ToString().ToUpper(),
+                    Gender = "UNKNOWN",
+                    MultiProperty = 0,
+                    MiniProfile = 0,
+                    PseudoProfile = 0,
+                    ReplaceAddress = 0,
+                    ProfileId = 1,
+                    CreatorCode = "SUPERVISOR",
+                    CreatedDate = new DateTime(2020, 1, 1),
+                    LastUpdaterCode = "ORS",
+                    LastUpdated = new DateTime(2020, 1, 1),
+                    GenericName = request.Interface.SourceName,
+                    IndividualName = new IndividualName
+                    {
+                        NameFirst = request.Interface.SourceName,
+                        NameSur = ""
+                    },
+                    MfResortProfileId = request.Interface.SourceId.ToString(),
+                    MfAllowMail = "NO",
+                    MfAllowEMail = "NO",
+                    MfGuestPriv = "NO",
+                    MfAllowPhone = 0,
+                    MfAllowSMS = 0,
+                    PrivacyOption = new PrivacyOption
+                    {
+                        mfAllowMail = "N",
+                        mfAllowEMail = "N",
+                        mfAllowPhone = 0,
+                        mfAllowSMS = 0,
+                        mfAllowHistory = 0,
+                        mfAllowMarketResearch = 0,
+                        mfAllowThirdParty = 0
+                    }
+                },
+                resProfileRPH = profiles.Count
+            };
+            profiles.Add(source);
+        }
+
+        return profiles;
     }
 }
