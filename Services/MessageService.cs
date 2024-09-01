@@ -24,9 +24,19 @@ public class MessageService
         _logService = logService;
     }
 
-    public async Task<bool> Receive(string message)
+    public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
     {
         _logService.Log(LogLevel.Information, $"Input message: \n{message}");
+
+        JsonSerializerOptions jso = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        if (messageReceiveRequest != null)
+        {
+            _logService.Log(LogLevel.Information, $"Query params: \n{JsonSerializer.Serialize(messageReceiveRequest, jso)}");
+        }
 
         XmlDocument xml = new XmlDocument();
         try
@@ -141,9 +151,6 @@ public class MessageService
                 }
             }
         }
-
-        JsonSerializerOptions jso = new JsonSerializerOptions();
-        jso.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 
         _logService.Log(LogLevel.Information, $"Request to booking api transaction get response: {JsonSerializer.Serialize(request, jso)}");
 
