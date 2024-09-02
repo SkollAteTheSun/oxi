@@ -82,6 +82,9 @@ public class MessageService
         }
 
         string transactionId = labelParts[2];
+        string transactionIdExternal = transactionId.Contains("BK") ?
+            transactionId.Substring(2) :
+            transactionId;
 
         string statusFromOpera;
         switch (labelParts[3])
@@ -101,7 +104,7 @@ public class MessageService
         TransactionGetResponseRequest request = new TransactionGetResponseRequest
         {
             Token = token,
-            TransactionId = transactionId,
+            TransactionId = transactionIdExternal,
             Status = statusFromOpera,
             Response = message
         };
@@ -170,10 +173,5 @@ public class MessageService
         }
 
         return true;
-    }
-
-    public void ReceiveGet(string message)
-    {
-        _logService.Log(LogLevel.Information, $"Request url: \n{message}");
     }
 }
