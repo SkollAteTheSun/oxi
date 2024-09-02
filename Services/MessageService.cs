@@ -82,9 +82,11 @@ public class MessageService
         }
 
         string transactionId = labelParts[2];
-        string transactionIdExternal = transactionId.Contains("BK") ?
-            transactionId.Substring(2) :
-            transactionId;
+        if (!transactionId.Contains("BK"))
+        {
+            return false;
+        }
+        string transactionIdExternal = transactionId.Substring(2);
 
         string statusFromOpera;
         switch (labelParts[3])
