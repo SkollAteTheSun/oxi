@@ -24,9 +24,19 @@ public class MessageService
         _logService = logService;
     }
 
-    public async Task<bool> Receive(string message)
+    public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
     {
         _logService.Log(LogLevel.Information, $"Input message: \n{message}");
+
+        JsonSerializerOptions jso = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        if (messageReceiveRequest != null)
+        {
+            _logService.Log(LogLevel.Information, $"Query params: \n{JsonSerializer.Serialize(messageReceiveRequest, jso)}");
+        }
 
         XmlDocument xml = new XmlDocument();
         try
@@ -72,6 +82,11 @@ public class MessageService
         }
 
         string transactionId = labelParts[2];
+        if (!transactionId.Contains("BK"))
+        {
+            return false;
+        }
+        string transactionIdExternal = transactionId.Substring(2);
 
         string statusFromOpera;
         switch (labelParts[3])
@@ -91,7 +106,7 @@ public class MessageService
         TransactionGetResponseRequest request = new TransactionGetResponseRequest
         {
             Token = token,
-            TransactionId = transactionId,
+            TransactionId = transactionIdExternal,
             Status = statusFromOpera,
             Response = message
         };
@@ -142,9 +157,6 @@ public class MessageService
             }
         }
 
-        JsonSerializerOptions jso = new JsonSerializerOptions();
-        jso.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-
         _logService.Log(LogLevel.Information, $"Request to booking api transaction get response: {JsonSerializer.Serialize(request, jso)}");
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, baseUrl + transactionGetResponseUrl);
@@ -163,10 +175,5 @@ public class MessageService
         }
 
         return true;
-    }
-
-    public void ReceiveGet(string message)
-    {
-        _logService.Log(LogLevel.Information, $"Request url: \n{message}");
     }
 }

@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -20,19 +21,11 @@ public class MessageController : ControllerBase
 
     [HttpPost("receive")]
     [SwaggerOperation(Summary = "Получение сообщения и отправка в букинг")]
-    public async Task<ActionResult> Receive()
+    public async Task<ActionResult> Receive([FromQuery] MessageReceiveRequest? messageReceiveRequest)
     {
         using StreamReader reader = new(Request.Body);
         string message = await reader.ReadToEndAsync();
-        await _messageService.Receive(message);
-        return Ok();
-    }
-
-    [HttpGet("receive")]
-    [SwaggerOperation(Summary = "Получение сообщения в GET")]
-    public ActionResult ReceiveGet()
-    {
-        _messageService.ReceiveGet($"{Request.Path.Value}{Request.QueryString.ToString()}");
+        await _messageService.Receive(message, messageReceiveRequest);
         return Ok();
     }
 }
