@@ -9,4 +9,7 @@ public class GuaranteeInfo
 
     [XmlElement("mfGuaranteeType")]
     public required string MfGuaranteeType { get; set; }
+
+    [XmlElement("GuaranteeDeposit")]
+    public GuaranteeInfoDeposit? GuaranteeDeposit { get; set; }
 }

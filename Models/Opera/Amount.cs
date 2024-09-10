@@ -7,6 +7,6 @@ public class Amount
     [XmlAttribute("currencyCode")]
     public required string CurrencyCode { get; set; }
 
-    [XmlElement("valueNum")]
-    public double ValueNum { get; set; }
+    [XmlElement("valueNum", IsNullable = true)]
+    public double? ValueNum { get; set; }
 }
