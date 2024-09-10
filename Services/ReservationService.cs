@@ -243,7 +243,7 @@ public class ReservationService
                     GuaranteeInfo = new GuaranteeInfo
                     {
                         GuaranteeType = "NA",
-                        MfGuaranteeType = "7",
+                        MfGuaranteeType = "1",
                         GuaranteeDeposit = new GuaranteeInfoDeposit
                         {
                             Amount = new Amount
