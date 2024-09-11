@@ -243,7 +243,7 @@ public class ReservationService
                     GuaranteeInfo = new GuaranteeInfo
                     {
                         GuaranteeType = "NA",
-                        MfGuaranteeType = "1",
+                        MfGuaranteeType = request.Interface.GuaranteeType,
                         GuaranteeDeposit = new GuaranteeInfoDeposit
                         {
                             Amount = new Amount
@@ -259,13 +259,13 @@ public class ReservationService
                         new PaymentInstruction
                         {
                             PaymentMethodType = "NA",
-                            mfPaymentMethod = "CA",
+                            mfPaymentMethod = request.Interface.PaymentMethod,
                             PaymentDue = new PaymentDue
                             {
                                 Amount = new Amount
                                 {
                                     CurrencyCode = "RUB",
-                                    ValueNum = 0 //request.Reservation.RoomStay.Amount
+                                    ValueNum = 0
                                 },
                                 CancelIfNotReceived = 0
                             }
