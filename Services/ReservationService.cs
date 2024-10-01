@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
@@ -95,50 +96,50 @@ public class ReservationService
             ],
             ResComments =
             [
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 0,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = "RATE_FIXED=NO",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 1,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = "DISCOUNT_PERCENTAGE=0",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 2,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = "PARTY=",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 3,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
                 new ResComment
                 {
                     ReservationActionType = reservationActionType,
                     ResCommentRPH = 0,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = "RATE_FIXED=NO",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 1,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = "DISCOUNT_PERCENTAGE=0",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 2,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = "PARTY=",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 3,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 4,
                     СommentOriginatorCode = "SUPERVISOR",
                     GuestViewable = 1,
                     Comment = MakeComment(request),
@@ -241,21 +242,30 @@ public class ReservationService
                     resGuestRPHs = 0,
                     GuaranteeInfo = new GuaranteeInfo
                     {
-                        GuaranteeType = "CCDCVOUCHER",
-                        MfGuaranteeType = "GCO"
+                        GuaranteeType = "NA",
+                        MfGuaranteeType = request.Interface.GuaranteeType,
+                        GuaranteeDeposit = new GuaranteeInfoDeposit
+                        {
+                            Amount = new Amount
+                            {
+                                CurrencyCode = "RUB",
+                                ValueNum = 0
+                            },
+                            CancelIfNotReceived = 0
+                        }
                     },
                     PaymentInstructions =
                     [
                         new PaymentInstruction
                         {
-                            PaymentMethodType = "VOUCHER",
-                            mfPaymentMethod = "CA",
+                            PaymentMethodType = "NA",
+                            mfPaymentMethod = request.Interface.PaymentMethod,
                             PaymentDue = new PaymentDue
                             {
                                 Amount = new Amount
                                 {
                                     CurrencyCode = "RUB",
-                                    ValueNum = request.Reservation.RoomStay.Amount
+                                    ValueNum = 0
                                 },
                                 CancelIfNotReceived = 0
                             }
@@ -402,11 +412,19 @@ public class ReservationService
     private static string MakeComment(SendReservationRequest request)
     {
         StringBuilder sb = new StringBuilder();
+
         sb.Append("tot: ");
         sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
         sb.Append('\n');
         sb.Append("paid: ");
         sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
+
+        if (request.Reservation.ChildrenAges.Count > 0)
+        {
+            sb.Append('\n');
+            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
+        }
+
         if (!string.IsNullOrEmpty(request.Reservation.Comment))
         {
             sb.Append('\n');

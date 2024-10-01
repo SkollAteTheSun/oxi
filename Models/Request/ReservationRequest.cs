@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Kp.Ms.Oxi.Models.Enums;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Kp.Ms.Oxi.Models.Request;
 
@@ -27,6 +28,9 @@ public class ReservationRequest
 
     [Required]
     public required int Child { get; set; }
+
+    [SwaggerParameter("Возрасты детей")]
+    public List<int> ChildrenAges { get; set; } = [];
 
     [Required]
     public required ProfileRequest Profile { get; set; }
