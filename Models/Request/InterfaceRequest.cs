@@ -26,4 +26,10 @@ public class InterfaceRequest
     public string? SourceName { get; set; }
 
     public int? SourceId { get; set; }
+
+    [Required]
+    public required string GuaranteeType { get; set; }
+
+    [Required]
+    public required string PaymentMethod { get; set; }
 }

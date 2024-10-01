@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
@@ -241,21 +242,30 @@ public class ReservationService
                     resGuestRPHs = 0,
                     GuaranteeInfo = new GuaranteeInfo
                     {
-                        GuaranteeType = "CCDCVOUCHER",
-                        MfGuaranteeType = "GCO"
+                        GuaranteeType = "NA",
+                        MfGuaranteeType = request.Interface.GuaranteeType,
+                        GuaranteeDeposit = new GuaranteeInfoDeposit
+                        {
+                            Amount = new Amount
+                            {
+                                CurrencyCode = "RUB",
+                                ValueNum = 0
+                            },
+                            CancelIfNotReceived = 0
+                        }
                     },
                     PaymentInstructions =
                     [
                         new PaymentInstruction
                         {
-                            PaymentMethodType = "VOUCHER",
-                            mfPaymentMethod = "CA",
+                            PaymentMethodType = "NA",
+                            mfPaymentMethod = request.Interface.PaymentMethod,
                             PaymentDue = new PaymentDue
                             {
                                 Amount = new Amount
                                 {
                                     CurrencyCode = "RUB",
-                                    ValueNum = request.Reservation.RoomStay.Amount
+                                    ValueNum = 0
                                 },
                                 CancelIfNotReceived = 0
                             }
