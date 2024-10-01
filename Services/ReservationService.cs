@@ -95,50 +95,50 @@ public class ReservationService
             ],
             ResComments =
             [
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 0,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = "RATE_FIXED=NO",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 1,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = "DISCOUNT_PERCENTAGE=0",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 2,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = "PARTY=",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
+                // new ResComment
+                // {
+                //     ReservationActionType = reservationActionType,
+                //     ResCommentRPH = 3,
+                //     СommentOriginatorCode = "SYSTEM",
+                //     GuestViewable = 1,
+                //     Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
+                //     MfcommentType = "SYSTEM",
+                //     MfcommentDate = request.Reservation.CreatedAt
+                // },
                 new ResComment
                 {
                     ReservationActionType = reservationActionType,
                     ResCommentRPH = 0,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = "RATE_FIXED=NO",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 1,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = "DISCOUNT_PERCENTAGE=0",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 2,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = "PARTY=",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 3,
-                    СommentOriginatorCode = "SYSTEM",
-                    GuestViewable = 1,
-                    Comment = $"HOTEL_DATE={request.Reservation.DateIn}",
-                    MfcommentType = "SYSTEM",
-                    MfcommentDate = request.Reservation.CreatedAt
-                },
-                new ResComment
-                {
-                    ReservationActionType = reservationActionType,
-                    ResCommentRPH = 4,
                     СommentOriginatorCode = "SUPERVISOR",
                     GuestViewable = 1,
                     Comment = MakeComment(request),
@@ -402,11 +402,19 @@ public class ReservationService
     private static string MakeComment(SendReservationRequest request)
     {
         StringBuilder sb = new StringBuilder();
+
         sb.Append("tot: ");
         sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
         sb.Append('\n');
         sb.Append("paid: ");
         sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
+
+        if (request.Reservation.ChildrenAges.Count > 0)
+        {
+            sb.Append('\n');
+            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
+        }
+
         if (!string.IsNullOrEmpty(request.Reservation.Comment))
         {
             sb.Append('\n');
