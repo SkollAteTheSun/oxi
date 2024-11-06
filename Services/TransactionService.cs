@@ -37,7 +37,7 @@ public class TransactionService
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
-        _logService.Log(LogLevel.Information, $"Input message: \n{JsonSerializer.Serialize(transaction, jso)}");
+        _logService.Log(LogLevel.Information, $"Transaction get: \n{JsonSerializer.Serialize(transaction, jso)}");
 
         return transaction;
     }
