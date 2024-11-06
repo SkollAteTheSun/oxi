@@ -27,11 +27,22 @@ public class ReservationController : ControllerBase
     [SwaggerOperation(Summary = "Добавление / обновление брони")]
     public async Task<ActionResult<StatusDto>> Create([FromBody] SendReservationRequest request)
     {
-        string response = await _reservationService.Send(request);
-        return Ok(new StatusDto
+        try
         {
-            Status = StatusType.Success.ToString().ToLower(),
-            Message = response
-        });
+            string response = await _reservationService.Send(request);
+            return Ok(new StatusDto
+            {
+                Status = StatusType.Success.ToString().ToLower(),
+                Message = response
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new StatusDto
+            {
+                Status = StatusType.Fail.ToString().ToLower(),
+                Message = ex.Message
+            });
+        }
     }
 }

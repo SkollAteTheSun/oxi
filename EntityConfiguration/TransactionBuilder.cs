@@ -16,6 +16,7 @@ public class TransactionBuilder : IEntityTypeConfiguration<Transaction>
         builder.Property(x => x.HotelCode).HasColumnName("hotel_code").IsRequired();
         builder.Property(x => x.TransactionId).HasColumnName("transaction_id").IsRequired();
         builder.Property(x => x.InterfaceName).HasColumnName("interface_name").IsRequired();
+        builder.Property(x => x.InterfaceType).HasColumnName("interface_type");
         builder.Property(x => x.Sended).HasColumnName("sended").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.SendedAt).HasColumnName("sended_at");
         builder.Property(x => x.Received).HasColumnName("received").HasDefaultValue(false).IsRequired();
@@ -26,5 +27,6 @@ public class TransactionBuilder : IEntityTypeConfiguration<Transaction>
         builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         builder.Property(x => x.Request).HasColumnName("request").IsRequired();
         builder.Property(x => x.Xml).HasColumnName("xml").IsRequired();
+        builder.Property(x => x.Pre).HasColumnName("pre").HasDefaultValue(false).IsRequired();
     }
 }

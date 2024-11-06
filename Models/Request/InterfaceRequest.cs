@@ -1,9 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using Kp.Ms.Oxi.Models.Enums;
 
 namespace Kp.Ms.Oxi.Models.Request;
 
 public class InterfaceRequest
 {
+    public InterfaceType Type { get; set; } = InterfaceType.Oxi;
+
     [Required]
     public required string Url { get; set; }
 
@@ -32,4 +35,8 @@ public class InterfaceRequest
 
     [Required]
     public required string PaymentMethod { get; set; }
+
+    public InterfaceAuthRequest? Auth { get; set; }
+
+    public string? ChannelCode { get; set; }
 }

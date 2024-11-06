@@ -43,6 +43,7 @@ builder.Services.AddDbContext<DefaultContext>(opt =>
 
 builder.Services
     .AddControllers()
+    .AddXmlSerializerFormatters()
     .AddJsonOptions(options => { options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); })
     .ConfigureApiBehaviorOptions(options =>
     {

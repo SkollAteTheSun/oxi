@@ -10,6 +10,7 @@ public static class TransactionConverter
         return new TransactionDto
         {
             Id = transaction.Id,
+            InterfaceType = transaction.InterfaceType,
             Url = transaction.Url,
             Xml = transaction.Xml
         };

@@ -7,6 +7,7 @@ using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -27,6 +28,214 @@ public class ReservationService
     }
 
     public async Task<string> Send(SendReservationRequest request)
+    {
+        return request.Interface.Type switch
+        {
+            InterfaceType.Oxi => await SendToOxi(request),
+            InterfaceType.Fidelio => await SendToFidelio(request),
+            _ => throw new Exception("Неизвестный тип интерфейса")
+        };
+    }
+
+    private static string MakeComment(SendReservationRequest request)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.Append("tot: ");
+        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
+        sb.Append('\n');
+        sb.Append("paid: ");
+        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
+
+        if (request.Reservation.ChildrenAges.Count > 0)
+        {
+            sb.Append('\n');
+            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
+        }
+
+        if (!string.IsNullOrEmpty(request.Reservation.Comment))
+        {
+            sb.Append('\n');
+            sb.Append(request.Reservation.Comment);
+        }
+
+        return sb.ToString();
+    }
+
+    private static void MakeTransactionId(SendReservationRequest request)
+    {
+        request.Interface.TransactionId = "BK" + request.Interface.TransactionId;
+    }
+
+    private static List<ResProfile> MakeProfiles(SendReservationRequest request)
+    {
+        List<ResProfile> profiles = [];
+
+        ResProfile contact = new ResProfile
+        {
+            Profile = new Profile
+            {
+                ProfileType = ProfileType.Contact.ToString().ToUpper(),
+                Gender = "UNKNOWN",
+                MultiProperty = 0,
+                MiniProfile = 0,
+                PseudoProfile = 0,
+                ReplaceAddress = 0,
+                ProfileId = request.Reservation.Profile.Id,
+                CreatorCode = "SUPERVISOR",
+                CreatedDate = request.Reservation.Profile.CreatedAt,
+                LastUpdaterCode = "ORS",
+                LastUpdated = request.Reservation.Profile.UpdatedAt,
+                GenericName = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
+                PrimaryLanguageId = "E",
+                IndividualName = new IndividualName
+                {
+                    NameFirst = CyrillicToLatin.Convert(request.Reservation.Profile.FirstName),
+                    NameSur = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
+                },
+                AlternateLanguageIDs = "R",
+                MfNationalName = new NationalName
+                {
+                    NameFirst = request.Reservation.Profile.FirstName,
+                    NameLast = request.Reservation.Profile.LastName,
+                },
+                DateOfBirth = request.Reservation.Profile.DateOfBirth,
+                MfResort = request.Interface.HotelCode,
+                MfResortProfileId = request.Reservation.Profile.ExternalId,
+                MfAllowMail = "YES",
+                MfAllowEMail = "NO",
+                MfGuestPriv = "NO",
+                ElectronicAddresses =
+                [
+                    new ElectronicAddress
+                    {
+                        ElectronicAddressType = "EMAIL",
+                        Address = request.Reservation.Profile.Email,
+                        MfPrimary = "Y",
+                        Confirmation = 0
+                    }
+                ],
+                PhoneNumbers =
+                [
+                    new PhoneNumber
+                    {
+                        PhoneNumberType = "MOBILE",
+                        Number = request.Reservation.Profile.Phone,
+                        MfPrimary = "Y",
+                        Confirmation = 0
+                    }
+                ],
+                MfAllowPhone = 0,
+                MfAllowSMS = 0,
+                PrivacyOption = new PrivacyOption
+                {
+                    mfAllowMail = "Y",
+                    mfAllowEMail = "Y",
+                    mfAllowPhone = 1,
+                    mfAllowSMS = 1,
+                    mfAllowHistory = 1,
+                    mfAllowMarketResearch = 1,
+                    mfAllowThirdParty = 1
+                }
+            },
+            resProfileRPH = 0
+        };
+        profiles.Add(contact);
+
+        if (request.Interface is { TravelAgentName: not null, TravelAgentId: not null })
+        {
+            ResProfile travelAgent = new ResProfile
+            {
+                Profile = new Profile
+                {
+                    ProfileType = ProfileType.Travel.ToString().ToUpper(),
+                    Gender = "UNKNOWN",
+                    MultiProperty = 0,
+                    MiniProfile = 0,
+                    PseudoProfile = 0,
+                    ReplaceAddress = 0,
+                    ProfileId = 1,
+                    CreatorCode = "SUPERVISOR",
+                    CreatedDate = new DateTime(2020, 1, 1),
+                    LastUpdaterCode = "ORS",
+                    LastUpdated = new DateTime(2020, 1, 1),
+                    GenericName = request.Interface.TravelAgentName,
+                    IndividualName = new IndividualName
+                    {
+                        NameFirst = request.Interface.TravelAgentName,
+                        NameSur = ""
+                    },
+                    MfResortProfileId = request.Interface.TravelAgentId.ToString(),
+                    MfAllowMail = "NO",
+                    MfAllowEMail = "NO",
+                    MfGuestPriv = "NO",
+                    MfAllowPhone = 0,
+                    MfAllowSMS = 0,
+                    PrivacyOption = new PrivacyOption
+                    {
+                        mfAllowMail = "N",
+                        mfAllowEMail = "N",
+                        mfAllowPhone = 0,
+                        mfAllowSMS = 0,
+                        mfAllowHistory = 0,
+                        mfAllowMarketResearch = 0,
+                        mfAllowThirdParty = 0
+                    }
+                },
+                resProfileRPH = profiles.Count
+            };
+            profiles.Add(travelAgent);
+        }
+
+        if (request.Interface is { SourceName: not null, SourceId: not null })
+        {
+            ResProfile source = new ResProfile
+            {
+                Profile = new Profile
+                {
+                    ProfileType = ProfileType.Wholesaler.ToString().ToUpper(),
+                    Gender = "UNKNOWN",
+                    MultiProperty = 0,
+                    MiniProfile = 0,
+                    PseudoProfile = 0,
+                    ReplaceAddress = 0,
+                    ProfileId = 1,
+                    CreatorCode = "SUPERVISOR",
+                    CreatedDate = new DateTime(2020, 1, 1),
+                    LastUpdaterCode = "ORS",
+                    LastUpdated = new DateTime(2020, 1, 1),
+                    GenericName = request.Interface.SourceName,
+                    IndividualName = new IndividualName
+                    {
+                        NameFirst = request.Interface.SourceName,
+                        NameSur = ""
+                    },
+                    MfResortProfileId = request.Interface.SourceId.ToString(),
+                    MfAllowMail = "NO",
+                    MfAllowEMail = "NO",
+                    MfGuestPriv = "NO",
+                    MfAllowPhone = 0,
+                    MfAllowSMS = 0,
+                    PrivacyOption = new PrivacyOption
+                    {
+                        mfAllowMail = "N",
+                        mfAllowEMail = "N",
+                        mfAllowPhone = 0,
+                        mfAllowSMS = 0,
+                        mfAllowHistory = 0,
+                        mfAllowMarketResearch = 0,
+                        mfAllowThirdParty = 0
+                    }
+                },
+                resProfileRPH = profiles.Count
+            };
+            profiles.Add(source);
+        }
+
+        return profiles;
+    }
+
+    private async Task<string> SendToOxi(SendReservationRequest request)
     {
         MakeTransactionId(request);
 
@@ -297,7 +506,8 @@ public class ReservationService
              * "UDFC02" // Par
              * "UDFC01" // Raison RTC
              */
-            Udfs = [
+            Udfs =
+            [
                 new Udf
                 {
                     UdfDefinition = new UdfDefinition
@@ -396,6 +606,7 @@ public class ReservationService
                 HotelCode = request.Interface.HotelCode,
                 TransactionId = request.Interface.TransactionId,
                 InterfaceName = request.Interface.InterfaceName,
+                InterfaceType = (int)request.Interface.Type,
                 Status = request.Interface.Status,
                 Request = JsonSerializer.Serialize(request),
                 Url = basePath + queryBuilder,
@@ -409,201 +620,238 @@ public class ReservationService
         return apiResponse;
     }
 
-    private static string MakeComment(SendReservationRequest request)
+    private async Task<string> SendToFidelio(SendReservationRequest request)
     {
-        StringBuilder sb = new StringBuilder();
+        string? apiResponse;
 
-        sb.Append("tot: ");
-        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
-        sb.Append('\n');
-        sb.Append("paid: ");
-        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
+        MakeTransactionId(request);
 
-        if (request.Reservation.ChildrenAges.Count > 0)
+        if (request.Interface.Auth == null)
         {
-            sb.Append('\n');
-            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
+            throw new Exception("Interface auth data is not set");
         }
 
-        if (!string.IsNullOrEmpty(request.Reservation.Comment))
+        byte[] bytes = Convert.FromBase64String(request.Interface.Auth.Password);
+        byte[] key = Encoding.ASCII.GetBytes(_configuration["AesEncryption:Key"] ?? throw new Exception("Aes key is not set"));
+        byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
+        string decryptedPassword = AesEncryption.Decrypt(bytes, key, iv);
+
+        if (string.IsNullOrEmpty(request.Reservation.Profile.ExternalId))
         {
-            sb.Append('\n');
-            sb.Append(request.Reservation.Comment);
-        }
+            request.Interface.TransactionId += "_PROFILE";
 
-        return sb.ToString();
-    }
-
-    private static void MakeTransactionId(SendReservationRequest request)
-    {
-        request.Interface.TransactionId = "BK" + request.Interface.TransactionId;
-    }
-
-    private static List<ResProfile> MakeProfiles(SendReservationRequest request)
-    {
-        List<ResProfile> profiles = [];
-
-        ResProfile contact = new ResProfile
-        {
-            Profile = new Profile
+            Fidelio fidelio = new Fidelio
             {
-                ProfileType = ProfileType.Contact.ToString().ToUpper(),
-                Gender = "UNKNOWN",
-                MultiProperty = 0,
-                MiniProfile = 0,
-                PseudoProfile = 0,
-                ReplaceAddress = 0,
-                ProfileId = request.Reservation.Profile.Id,
-                CreatorCode = "SUPERVISOR",
-                CreatedDate = request.Reservation.Profile.CreatedAt,
-                LastUpdaterCode = "ORS",
-                LastUpdated = request.Reservation.Profile.UpdatedAt,
-                GenericName = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
-                PrimaryLanguageId = "E",
-                IndividualName = new IndividualName
+                Request = new Request
                 {
-                    NameFirst = CyrillicToLatin.Convert(request.Reservation.Profile.FirstName),
-                    NameSur = CyrillicToLatin.Convert(request.Reservation.Profile.LastName),
-                },
-                AlternateLanguageIDs = "R",
-                MfNationalName = new NationalName
-                {
-                    NameFirst = request.Reservation.Profile.FirstName,
-                    NameLast = request.Reservation.Profile.LastName,
-                },
-                DateOfBirth = request.Reservation.Profile.DateOfBirth,
-                MfResort = request.Interface.HotelCode,
-                MfResortProfileId = request.Reservation.Profile.ExternalId,
-                MfAllowMail = "YES",
-                MfAllowEMail = "NO",
-                MfGuestPriv = "NO",
-                ElectronicAddresses =
-                [
-                    new ElectronicAddress
+                    Id = request.Interface.TransactionId,
+                    UserName = request.Interface.Auth.UserName,
+                    Password = decryptedPassword,
+                    Insert = new Insert
                     {
-                        ElectronicAddressType = "EMAIL",
-                        Address = request.Reservation.Profile.Email,
-                        MfPrimary = "Y",
-                        Confirmation = 0
+                        ReqType = "Profile",
+                        TranslationTable = "XML",
+                        Fields =
+                        [
+                            new Field { Name = "ProfileType", Value = "2" },
+                            new Field { Name = "ProfileCategory", Value = "4" },
+                            new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
+                            new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
+                            new Field { Name = "Communication", Attr = "MPH", Primary = "1", Value = request.Reservation.Profile.Phone },
+                            new Field { Name = "Communication", Attr = "EAD", Primary = "1", Value = request.Reservation.Profile.Email },
+                            new Field { Name = "Language", Value = "RUS" },
+                            new Field { Name = "CountryISO3", Value = "RUS" },
+                            new Field { Name = "Birthday", Value = request.Reservation.Profile.DateOfBirth.ToString("dd.MM.yyyy") },
+                        ]
                     }
-                ],
-                PhoneNumbers =
-                [
-                    new PhoneNumber
-                    {
-                        PhoneNumberType = "MOBILE",
-                        Number = request.Reservation.Profile.Phone,
-                        MfPrimary = "Y",
-                        Confirmation = 0
-                    }
-                ],
-                MfAllowPhone = 0,
-                MfAllowSMS = 0,
-                PrivacyOption = new PrivacyOption
-                {
-                    mfAllowMail = "Y",
-                    mfAllowEMail = "Y",
-                    mfAllowPhone = 1,
-                    mfAllowSMS = 1,
-                    mfAllowHistory = 1,
-                    mfAllowMarketResearch = 1,
-                    mfAllowThirdParty = 1
                 }
-            },
-            resProfileRPH = 0
-        };
-        profiles.Add(contact);
-
-        if (request.Interface is { TravelAgentName: not null, TravelAgentId: not null })
-        {
-            ResProfile travelAgent = new ResProfile
-            {
-                Profile = new Profile
-                {
-                    ProfileType = ProfileType.Travel.ToString().ToUpper(),
-                    Gender = "UNKNOWN",
-                    MultiProperty = 0,
-                    MiniProfile = 0,
-                    PseudoProfile = 0,
-                    ReplaceAddress = 0,
-                    ProfileId = 1,
-                    CreatorCode = "SUPERVISOR",
-                    CreatedDate = new DateTime(2020, 1, 1),
-                    LastUpdaterCode = "ORS",
-                    LastUpdated = new DateTime(2020, 1, 1),
-                    GenericName = request.Interface.TravelAgentName,
-                    IndividualName = new IndividualName
-                    {
-                        NameFirst = request.Interface.TravelAgentName,
-                        NameSur = ""
-                    },
-                    MfResortProfileId = request.Interface.TravelAgentId.ToString(),
-                    MfAllowMail = "NO",
-                    MfAllowEMail = "NO",
-                    MfGuestPriv = "NO",
-                    MfAllowPhone = 0,
-                    MfAllowSMS = 0,
-                    PrivacyOption = new PrivacyOption
-                    {
-                        mfAllowMail = "N",
-                        mfAllowEMail = "N",
-                        mfAllowPhone = 0,
-                        mfAllowSMS = 0,
-                        mfAllowHistory = 0,
-                        mfAllowMarketResearch = 0,
-                        mfAllowThirdParty = 0
-                    }
-                },
-                resProfileRPH = profiles.Count
             };
-            profiles.Add(travelAgent);
+
+            XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
+
+            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Fidelio));
+            string xmlBody = "";
+
+            XmlWriterSettings settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true
+            };
+
+            string xml;
+            using (var sww = new StringWriter())
+            {
+                using (XmlWriter writer = XmlWriter.Create(sww, settings))
+                {
+                    xmlSerializer.Serialize(writer, fidelio, ns);
+                    xmlBody = sww.ToString();
+
+                    string xmlHeader = $"""
+                                        <?xml version="1.0" encoding="UTF-8"?>
+                                        """;
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append(xmlHeader);
+                    sb.Append('\n');
+                    sb.Append(xmlBody);
+
+                    xml = sb.ToString();
+                }
+            }
+
+            bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
+            if (directMode)
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    httpClient.DefaultRequestHeaders.Clear();
+                    httpClient.DefaultRequestHeaders.ConnectionClose = true;
+                    httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+                    var requestMessage = new HttpRequestMessage(HttpMethod.Post, request.Interface.Url);
+                    requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
+                    using (var response = httpClient.SendAsync(requestMessage).Result)
+                    {
+                        response.EnsureSuccessStatusCode();
+                        apiResponse = response.Content.ReadAsStringAsync().Result;
+                    }
+                }
+            }
+            else
+            {
+                _context.Transactions.Add(new Transaction
+                {
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    HotelCode = request.Interface.HotelCode,
+                    TransactionId = request.Interface.TransactionId,
+                    InterfaceName = request.Interface.InterfaceName,
+                    InterfaceType = (int)request.Interface.Type,
+                    Status = request.Interface.Status,
+                    Request = JsonSerializer.Serialize(request),
+                    Url = request.Interface.Url,
+                    Xml = xml,
+                    Pre = true
+                });
+                await _context.SaveChangesAsync();
+
+                apiResponse = "saved to database";
+            }
+        }
+        else
+        {
+            Fidelio fidelio = new Fidelio
+            {
+                Request = new Request
+                {
+                    Id = request.Interface.TransactionId,
+                    UserName = request.Interface.Auth.UserName,
+                    Password = decryptedPassword,
+                    Insert = new Insert
+                    {
+                        ReqType = "Reservation",
+                        TranslationTable = "XML",
+                        Fields =
+                        [
+                            new Field { Name = "RoomType", Value = request.Reservation.RoomTypeCode },
+                            new Field { Name = "RateRoomType", Value = request.Reservation.RoomTypeCode },
+                            new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
+                            new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
+                            new Field { Name = "GuestArrival", Value = request.Reservation.DateIn.ToString("dd.MM.yyyy") },
+                            new Field { Name = "GuestDeparture", Value = request.Reservation.DateOut.ToString("dd.MM.yyyy") },
+                            new Field { Name = "ReservationState", Value = "0" },
+                            new Field { Name = "ReservationComment1", Value = "" }, // Reservation / billing info
+                            new Field { Name = "ReservationType", Value = "RES" },
+                            new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
+                            new Field { Name = "MarketCode", Value = request.Reservation.RoomStay.MarketCode },
+                            new Field { Name = "SourceCode", Value = request.Reservation.RoomStay.SourceCode },
+                            new Field { Name = "ChannelCode", Value = request.Interface.ChannelCode },
+                            new Field { Name = "RateCode", Value = request.Reservation.RoomStay.RateCode },
+                            new Field { Name = "RateValue", Value = request.Reservation.RoomStay.Amount.ToString("0.00") },
+                            new Field { Name = "CurrencyCode", Value = "RUR" },
+                            new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber },
+                            new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
+                            new Field { Name = "ReservationStatus", Value = "1" },
+                            new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" }, // Attributes / Resort fee | Reservation / Resort fee
+                            new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
+                            new Field { Name = "Child", Attr = "CA1", Value = request.Reservation.Child.ToString() },
+                            new Field { Name = "Notes", Attr = "RMA", Value = request.Reservation.Comment }, // Notes / Reservation / Reservation messages
+                            new Field { Name = "Notes", Attr = "BNO", Value = "" }, // Notes / Reservation / Billing notes
+                        ]
+                    }
+                }
+            };
+
+            XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
+
+            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Fidelio));
+            string xmlBody = "";
+
+            XmlWriterSettings settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true
+            };
+
+            string xml;
+            using (var sww = new StringWriter())
+            {
+                using (XmlWriter writer = XmlWriter.Create(sww, settings))
+                {
+                    xmlSerializer.Serialize(writer, fidelio, ns);
+                    xmlBody = sww.ToString();
+
+                    string xmlHeader = $"""
+                                        <?xml version="1.0" encoding="UTF-8"?>
+                                        """;
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append(xmlHeader);
+                    sb.Append('\n');
+                    sb.Append(xmlBody);
+
+                    xml = sb.ToString();
+                }
+            }
+
+            bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
+            if (directMode)
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    httpClient.DefaultRequestHeaders.Clear();
+                    httpClient.DefaultRequestHeaders.ConnectionClose = true;
+                    httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+                    var requestMessage = new HttpRequestMessage(HttpMethod.Post, request.Interface.Url);
+                    requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
+                    using (var response = httpClient.SendAsync(requestMessage).Result)
+                    {
+                        response.EnsureSuccessStatusCode();
+                        apiResponse = response.Content.ReadAsStringAsync().Result;
+                    }
+                }
+            }
+            else
+            {
+                _context.Transactions.Add(new Transaction
+                {
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    HotelCode = request.Interface.HotelCode,
+                    TransactionId = request.Interface.TransactionId,
+                    InterfaceName = request.Interface.InterfaceName,
+                    InterfaceType = (int)request.Interface.Type,
+                    Status = request.Interface.Status,
+                    Request = JsonSerializer.Serialize(request),
+                    Url = request.Interface.Url,
+                    Xml = xml,
+                    Pre = false
+                });
+                await _context.SaveChangesAsync();
+
+                apiResponse = "saved to database";
+            }
         }
 
-        if (request.Interface is { SourceName: not null, SourceId: not null })
-        {
-            ResProfile source = new ResProfile
-            {
-                Profile = new Profile
-                {
-                    ProfileType = ProfileType.Wholesaler.ToString().ToUpper(),
-                    Gender = "UNKNOWN",
-                    MultiProperty = 0,
-                    MiniProfile = 0,
-                    PseudoProfile = 0,
-                    ReplaceAddress = 0,
-                    ProfileId = 1,
-                    CreatorCode = "SUPERVISOR",
-                    CreatedDate = new DateTime(2020, 1, 1),
-                    LastUpdaterCode = "ORS",
-                    LastUpdated = new DateTime(2020, 1, 1),
-                    GenericName = request.Interface.SourceName,
-                    IndividualName = new IndividualName
-                    {
-                        NameFirst = request.Interface.SourceName,
-                        NameSur = ""
-                    },
-                    MfResortProfileId = request.Interface.SourceId.ToString(),
-                    MfAllowMail = "NO",
-                    MfAllowEMail = "NO",
-                    MfGuestPriv = "NO",
-                    MfAllowPhone = 0,
-                    MfAllowSMS = 0,
-                    PrivacyOption = new PrivacyOption
-                    {
-                        mfAllowMail = "N",
-                        mfAllowEMail = "N",
-                        mfAllowPhone = 0,
-                        mfAllowSMS = 0,
-                        mfAllowHistory = 0,
-                        mfAllowMarketResearch = 0,
-                        mfAllowThirdParty = 0
-                    }
-                },
-                resProfileRPH = profiles.Count
-            };
-            profiles.Add(source);
-        }
-
-        return profiles;
+        return apiResponse;
     }
 }
