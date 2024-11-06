@@ -8,6 +8,9 @@ public class TransactionDto
     public required long Id { get; set; }
 
     [Required]
+    public int InterfaceType { get; set; }
+
+    [Required]
     public required string Url { get; set; }
 
     [Required]

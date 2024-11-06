@@ -12,8 +12,10 @@ public class Transaction
     public required string HotelCode { get; set; }
     public required string TransactionId { get; set; }
     public required string InterfaceName { get; set; }
+    public required int InterfaceType { get; set; }
     public required string Status { get; set; }
     public required string Request { get; set; }
     public required string Url { get; set; }
     public required string Xml { get; set; }
+    public bool Pre { get; set; }
 }

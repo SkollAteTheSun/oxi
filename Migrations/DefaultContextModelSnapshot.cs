@@ -45,6 +45,14 @@ namespace Kp.Ms.Oxi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("interface_name");
 
+                    b.Property<int>("InterfaceType")
+                        .HasColumnType("integer")
+                        .HasColumnName("interface_type");
+
+                    b.Property<bool>("Pre")
+                        .HasColumnType("boolean")
+                        .HasColumnName("pre");
+
                     b.Property<bool>("Received")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
