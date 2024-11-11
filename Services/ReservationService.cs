@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Field = Kp.Ms.Oxi.Models.Fidelio.Field;
 using Profile = Kp.Ms.Oxi.Models.Opera.Profile;
 using TimeUnit = Kp.Ms.Oxi.Models.Opera.TimeUnit;
-using ReservationStatusTypeFidelio = Kp.Ms.Oxi.Models.Enums.Fidelio.ReservationStatusType;
 
 namespace Kp.Ms.Oxi.Services;
 
