@@ -15,4 +15,10 @@ public class Response
 
     [XmlElement("insertResponse")]
     public InsertResponse? InsertResponse { get; set; }
+
+    [XmlElement("updateResponse")]
+    public UpdateResponse? UpdateResponse { get; set; }
+
+    [XmlElement("queryResponse")]
+    public QueryResponse? QueryResponse { get; set; }
 }

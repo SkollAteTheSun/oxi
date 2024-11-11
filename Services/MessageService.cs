@@ -270,19 +270,20 @@ public class MessageService
 
             if (statusFromFidelio == "success")
             {
-                if (request.Response.InsertResponse == null)
+                if (request.Response.InsertResponse != null)
                 {
-                    _logService.Log(LogLevel.Error, $"Response from fidelio dont contain InsertResponse");
-                    return false;
-                }
+                    if (request.Response.InsertResponse.Rows.GuestNum == null)
+                    {
+                        _logService.Log(LogLevel.Error, $"Response from fidelio dont contain GuestNum");
+                        return false;
+                    }
 
-                if (request.Response.InsertResponse.Rows.GuestNum == null)
+                    requestToBk.ReservationExternalId = request.Response.InsertResponse.Rows.GuestNum.ToString();
+                }
+                else if (request.Response.UpdateResponse != null || reservationRequest.Reservation.ExternalId != null)
                 {
-                    _logService.Log(LogLevel.Error, $"Response from fidelio dont contain GuestNum");
-                    return false;
+                    requestToBk.ReservationExternalId = reservationRequest.Reservation.ExternalId;
                 }
-
-                requestToBk.ReservationExternalId = request.Response.InsertResponse.Rows.GuestNum.ToString();
             }
 
             _logService.Log(LogLevel.Information, $"Request to booking api transaction get response url {baseUrl + transactionGetResponseUrl} body: {JsonSerializer.Serialize(requestToBk, jso)}");
