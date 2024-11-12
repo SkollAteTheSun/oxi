@@ -32,6 +32,8 @@ public class ReservationRequest
     [SwaggerParameter("Возрасты детей")]
     public List<int> ChildrenAges { get; set; } = [];
 
+    public List<ChildAgeCatRequest> ChildAgeCats { get; set; } = [];
+
     [Required]
     public required ProfileRequest Profile { get; set; }
 

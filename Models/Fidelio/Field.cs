@@ -18,4 +18,10 @@ public class Field
 
     [XmlAttribute("description")]
     public string? Description { get; set; }
+
+    [XmlAttribute("startDate")]
+    public string? StartDate { get; set; }
+
+    [XmlAttribute("endDate")]
+    public string? EndDate { get; set; }
 }

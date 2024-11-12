@@ -15,4 +15,10 @@ public class Request
 
     [XmlElement("insert")]
     public Insert? Insert { get; set; }
+
+    [XmlElement("update")]
+    public Update? Update { get; set; }
+
+    [XmlElement("command")]
+    public Command? Command { get; set; }
 }

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
@@ -11,6 +10,9 @@ using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.AspNetCore.Http.Extensions;
+using Field = Kp.Ms.Oxi.Models.Fidelio.Field;
+using Profile = Kp.Ms.Oxi.Models.Opera.Profile;
+using TimeUnit = Kp.Ms.Oxi.Models.Opera.TimeUnit;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -636,6 +638,7 @@ public class ReservationService
         byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
         string decryptedPassword = AesEncryption.Decrypt(bytes, key, iv);
 
+        // если новый профиль гостя, то делается транзакция только на профиль отдельно без брони
         if (string.IsNullOrEmpty(request.Reservation.Profile.ExternalId))
         {
             request.Interface.TransactionId += "_PROFILE";
@@ -745,41 +748,100 @@ public class ReservationService
                 {
                     Id = request.Interface.TransactionId,
                     UserName = request.Interface.Auth.UserName,
-                    Password = decryptedPassword,
-                    Insert = new Insert
+                    Password = decryptedPassword
+                }
+            };
+
+            if (request.Reservation.Status == ReservationStatusType.Cancelled)
+            {
+                if (request.Reservation.ExternalId == null)
+                {
+                    throw new Exception("Отмена бронирования не возможна. Не передан external id.");
+                }
+
+                fidelio.Request.Command = new Command
+                {
+                    Cancel = new Cancel
+                    {
+                        GuestNum = request.Reservation.ExternalId,
+                        Reason = "cancelled in booking"
+                    }
+                };
+            }
+            else
+            {
+                List<Field> fields =
+                [
+                    new Field { Name = "RoomType", Value = request.Reservation.RoomTypeCode },
+                    new Field { Name = "RateRoomType", Value = request.Reservation.RoomTypeCode },
+                    new Field { Name = "GuestArrival", Value = request.Reservation.DateIn.ToString("dd.MM.yyyy") },
+                    new Field { Name = "GuestDeparture", Value = request.Reservation.DateOut.ToString("dd.MM.yyyy") },
+                    new Field { Name = "ReservationStatus", Value = "1" }, // 0 - tentative, 1 - definite,
+                    // new Field { Name = "ReservationComment1", Value = "" }, // Reservation / billing info
+                    // new Field { Name = "ReservationComment2", Value = "" }, // Remarks
+                    new Field { Name = "ReservationType", Value = "RES" },
+                    new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
+                    new Field { Name = "MarketCode", Value = request.Reservation.RoomStay.MarketCode },
+                    new Field { Name = "SourceCode", Value = request.Reservation.RoomStay.SourceCode },
+                    new Field { Name = "ChannelCode", Value = request.Interface.ChannelCode },
+                    new Field { Name = "RateCode", Value = request.Reservation.RoomStay.RateCode },
+                    // new Field { Name = "RateValue", Value = request.Reservation.RoomStay.Amount.ToString("0.00") },
+                    new Field { Name = "CurrencyCode", Value = "RUR" },
+                    // new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber },
+                    new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
+                    new Field
+                    {
+                        Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0"
+                    }, // Attributes / Resort fee | Reservation / Resort fee
+                    new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
+                    // new Field { Name = "Child", Attr = "CA1", Value = request.Reservation.Child.ToString() },
+                    new Field { Name = "Notes", Attr = "RMA", Value = MakeComment(request) }, // Notes / Reservation / Reservation messages
+                    // new Field { Name = "Notes", Attr = "BNO", Value = "" }, // Notes / Reservation / Billing notes
+                    new Field { Name = "AllowRoomOverbooking", Value = "1" }
+                ];
+
+                fields.AddRange(request.Reservation.RoomStay.Rates.Select(rateOneDay => new Field
+                {
+                    Name = "RateValue",
+                    Value = rateOneDay.Amount.ToString("0.00"),
+                    StartDate = rateOneDay.Date.ToString("dd.MM.yyyy"),
+                    EndDate = rateOneDay.Date.AddDays(1).ToString("dd.MM.yyyy")
+                }));
+
+                fields.AddRange(request.Reservation.ChildAgeCats
+                    .Where(cac => cac.Count > 0)
+                    .Select(childAgeCat => new Field
+                    {
+                        Name = "Child",
+                        Attr = childAgeCat.Code,
+                        Value = childAgeCat.Count.ToString()
+                    }));
+
+                if (request.Reservation.ExternalId == null)
+                {
+                    fidelio.Request.Insert = new Insert
                     {
                         ReqType = "Reservation",
                         TranslationTable = "XML",
-                        Fields =
-                        [
-                            new Field { Name = "RoomType", Value = request.Reservation.RoomTypeCode },
-                            new Field { Name = "RateRoomType", Value = request.Reservation.RoomTypeCode },
-                            new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
-                            new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
-                            new Field { Name = "GuestArrival", Value = request.Reservation.DateIn.ToString("dd.MM.yyyy") },
-                            new Field { Name = "GuestDeparture", Value = request.Reservation.DateOut.ToString("dd.MM.yyyy") },
-                            new Field { Name = "ReservationState", Value = "0" },
-                            new Field { Name = "ReservationComment1", Value = "" }, // Reservation / billing info
-                            new Field { Name = "ReservationType", Value = "RES" },
-                            new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
-                            new Field { Name = "MarketCode", Value = request.Reservation.RoomStay.MarketCode },
-                            new Field { Name = "SourceCode", Value = request.Reservation.RoomStay.SourceCode },
-                            new Field { Name = "ChannelCode", Value = request.Interface.ChannelCode },
-                            new Field { Name = "RateCode", Value = request.Reservation.RoomStay.RateCode },
-                            new Field { Name = "RateValue", Value = request.Reservation.RoomStay.Amount.ToString("0.00") },
-                            new Field { Name = "CurrencyCode", Value = "RUR" },
-                            new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber },
-                            new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
-                            new Field { Name = "ReservationStatus", Value = "1" },
-                            new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" }, // Attributes / Resort fee | Reservation / Resort fee
-                            new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
-                            new Field { Name = "Child", Attr = "CA1", Value = request.Reservation.Child.ToString() },
-                            new Field { Name = "Notes", Attr = "RMA", Value = request.Reservation.Comment }, // Notes / Reservation / Reservation messages
-                            new Field { Name = "Notes", Attr = "BNO", Value = "" }, // Notes / Reservation / Billing notes
-                        ]
-                    }
+                        Fields = fields
+                    };
+
+                    // только при создании брони можем задать
+                    fidelio.Request.Insert.Fields.Add(new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber });
                 }
-            };
+                else
+                {
+                    fidelio.Request.Update = new Update
+                    {
+                        ReqType = "Reservation",
+                        Conditions =
+                        [
+                            new Condition { Name = "GuestNum", Operation = "eq", Value = request.Reservation.ExternalId }
+                        ],
+                        Fields = fields
+                    };
+                }
+            }
 
             XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
 
