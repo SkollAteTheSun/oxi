@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using Kp.Ms.Oxi.Models.Request;
-using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
+using Kp.Ms.Oxi.Models.Response;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -33,15 +33,12 @@ public class MessageController : ControllerBase
     [HttpPost("receive/fidelio")]
     [Consumes("application/xml")]
     [SwaggerOperation(Summary = "Получение сообщения от fidelio и отправка в букинг")]
-    public async Task<ActionResult> ReceiveFidelio([FromBody] Request? request)
+    public async Task<ActionResult<StatusDto>> ReceiveFidelio()
     {
-        if (request != null)
-        {
-            using StreamReader reader = new(Request.Body);
-            string message = await reader.ReadToEndAsync();
-            await _messageService.FidelioResult(request, message);
-        }
+        using StreamReader reader = new(Request.Body);
+        string message = await reader.ReadToEndAsync();
+        StatusDto dto = await _messageService.FidelioResult(message);
 
-        return Ok();
+        return Ok(dto);
     }
 }
