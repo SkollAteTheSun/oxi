@@ -40,7 +40,6 @@ if (string.IsNullOrEmpty(defaultConnectionString))
 builder.Services.AddDbContext<DefaultContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("Db")));
 
-
 builder.Services
     .AddControllers()
     .AddXmlSerializerFormatters()

@@ -50,7 +50,9 @@ namespace Kp.Ms.Oxi.Migrations
                         .HasColumnName("interface_type");
 
                     b.Property<bool>("Pre")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
+                        .HasDefaultValue(false)
                         .HasColumnName("pre");
 
                     b.Property<bool>("Received")
@@ -104,6 +106,9 @@ namespace Kp.Ms.Oxi.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_transaction");
+
+                    b.HasIndex(new[] { "HotelCode", "InterfaceName" }, "ix_hotel_code_and_interface_name")
+                        .HasDatabaseName("ix_transaction_hotel_code_interface_name");
 
                     b.ToTable("transaction", (string)null);
                 });

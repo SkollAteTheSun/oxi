@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Request;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kp.Ms.Oxi.Services;
@@ -17,12 +18,13 @@ public class TransactionService
         _logService = logService;
     }
 
-    public async Task<Transaction?> FirstOrDefault()
+    public async Task<Transaction?> FirstOrDefault(TransactionRequest request)
     {
         DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
         Transaction? transaction = await _context.Transactions
             .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
             .Where(t => t.Received == false)
+            .Where(t => t.HotelCode == request.HotelCode && t.InterfaceName == request.InterfaceName)
             .OrderBy(t => t.Id)
             .FirstOrDefaultAsync();
 

@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Kp.Ms.Oxi.Attributes;
 using Kp.Ms.Oxi.Converters;
 using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -25,9 +26,9 @@ public class TransactionController : ControllerBase
     [HttpGet]
     [AuthToken]
     [SwaggerOperation(Summary = "Получение транзакции")]
-    public async Task<ActionResult<TransactionDto>> GetTransaction()
+    public async Task<ActionResult<TransactionDto>> GetTransaction([FromQuery] TransactionRequest request)
     {
-        Transaction? transaction = await _transactionService.FirstOrDefault();
+        Transaction? transaction = await _transactionService.FirstOrDefault(request);
         if (transaction == null)
         {
             return NoContent();
