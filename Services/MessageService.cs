@@ -174,13 +174,11 @@ public class MessageService
 
         _logService.Log(LogLevel.Information, $"Response of booking api transaction get response: {Regex.Unescape(apiResponse)}");
 
-        Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.TransactionId == transactionId);
-        if (transaction != null)
-        {
-            transaction.Received = true;
-            transaction.ReceivedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-        }
+        List<Transaction> transactions = await _context.Transactions
+            .Where(t => t.TransactionId == transactionId && t.Received == false)
+            .ToListAsync();
+        transactions.ForEach(t => { t.Received = true; t.ReceivedAt = DateTime.UtcNow; });
+        await _context.SaveChangesAsync();
 
         return true;
     }

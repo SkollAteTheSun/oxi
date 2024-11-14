@@ -28,5 +28,7 @@ public class TransactionBuilder : IEntityTypeConfiguration<Transaction>
         builder.Property(x => x.Request).HasColumnName("request").IsRequired();
         builder.Property(x => x.Xml).HasColumnName("xml").IsRequired();
         builder.Property(x => x.Pre).HasColumnName("pre").HasDefaultValue(false).IsRequired();
+
+        builder.HasIndex(b => new { b.HotelCode, b.InterfaceName }, "ix_hotel_code_and_interface_name");
     }
 }
