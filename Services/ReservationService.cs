@@ -138,7 +138,8 @@ public class ReservationService
                     mfAllowHistory = 1,
                     mfAllowMarketResearch = 1,
                     mfAllowThirdParty = 1
-                }
+                },
+                MfVipStatus = request.Reservation.Profile.LoyaltyStatus
             },
             resProfileRPH = 0
         };

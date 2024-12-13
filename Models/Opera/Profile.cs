@@ -90,4 +90,7 @@ public class Profile
 
     [XmlElement("PrivacyOption")]
     public PrivacyOption? PrivacyOption { get; set; }
+
+    [XmlElement("mfVipStatus")]
+    public string? MfVipStatus { get; set; }
 }
