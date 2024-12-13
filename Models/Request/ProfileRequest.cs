@@ -29,4 +29,6 @@ public class ProfileRequest
 
     [Required]
     public required string Email { get; set; }
+
+    public string? LoyaltyStatus { get; set; }
 }
