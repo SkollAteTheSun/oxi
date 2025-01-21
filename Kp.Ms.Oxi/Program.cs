@@ -1,6 +1,9 @@
 using System.Text.Json.Serialization;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
+using Common.HttpClientWrapper;
+using Common.RabbitMQClient;
+using Common.RabbitMQClient.Config;
 using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Extensions;
@@ -8,6 +11,8 @@ using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,8 +42,11 @@ if (string.IsNullOrEmpty(defaultConnectionString))
 {
     throw new Exception("Connection string 'Db' not found.");
 }
-builder.Services.AddDbContext<DefaultContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("Db")));
+
+builder.Services.AddDbContextFactory<DefaultContext>(
+    options => options.UseNpgsql(defaultConnectionString),
+    ServiceLifetime.Transient
+);
 
 builder.Services
     .AddControllers()
@@ -102,12 +110,19 @@ builder.Services.AddCors(c => c.AddPolicy("cors", opt =>
 }));
 
 builder.Services.AddOpenSearch(builder.Configuration);
+builder.Services.AddRabbitMQ(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
+builder.Services.AddSingleton<IHttpClientWrapper, HttpClientWrapper>();
 
 builder.Services.AddSingleton<LogService>();
 builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
 builder.Services.AddTransient<MessageService>();
 builder.Services.AddTransient<TransactionService>();
+
+builder.Services.AddOptions<CheckOutProcessingSettings>()
+    .Bind(builder.Configuration.GetSection("CheckOutProcessing"));
+builder.Services.AddSingleton<PmsService>();
+builder.Services.ActivateSingleton<PmsService>();
 
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();

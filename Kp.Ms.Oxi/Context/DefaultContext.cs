@@ -12,10 +12,14 @@ public class DefaultContext : DbContext
     }
 
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<CheckOut> CheckOuts { get; set; }
+    public DbSet<Hotel> Hotels { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new TransactionBuilder());
+        modelBuilder.ApplyConfiguration(new CheckOutBuilder());
+        modelBuilder.ApplyConfiguration(new HotelBuilder());
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
