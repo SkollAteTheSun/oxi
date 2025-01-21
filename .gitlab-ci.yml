@@ -31,7 +31,7 @@ deploy_job:
   script:
     - sudo systemctl stop $SERVICE
     - cd $MS_PATH/src
-    - sudo dotnet ef database update -c DefaultContext -- --environment Staging
+    - dotnet ef database update -c DefaultContext -- --environment Staging
     - rm -r $MS_PATH/web/*
     - mv $MS_PATH/publish/*  $MS_PATH/web
     - sudo systemctl start $SERVICE
