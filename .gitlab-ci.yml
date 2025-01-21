@@ -23,7 +23,8 @@ build_job:
     - git checkout .
     - git checkout develop
     - git pull https://$USER_NAME:$TOKEN@gitlab.karousel.ru/dec/sharpei/oxi
-    - dotnet publish -r linux-x64 --property:PublishDir=$MS_PATH/publish /p:EnvironmentName=Staging --self-contained
+    - dotnet publish -r linux-x64 --property:PublishDir=$MS_PATH/publish /p:EnvironmentName=Staging --self-contained > build_log.txt 2>&1
+    - cat build_log.txt
     - echo "build is done"
 
 deploy_job:
@@ -31,7 +32,8 @@ deploy_job:
   script:
     - sudo systemctl stop $SERVICE
     - cd $MS_PATH/src
-    - dotnet ef database update -c DefaultContext -- --environment Staging
+    - dotnet ef database update -c DefaultContext -- --environment Staging > migrate_log.txt 2>&1
+    - cat migrate_log.txt
     - rm -r $MS_PATH/web/*
     - mv $MS_PATH/publish/*  $MS_PATH/web
     - sudo systemctl start $SERVICE
