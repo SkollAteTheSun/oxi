@@ -25,17 +25,12 @@ public class TransactionController : ControllerBase
 
     [HttpGet]
     [AuthToken]
-    [SwaggerOperation(Summary = "Получение транзакции")]
-    public async Task<ActionResult<TransactionDto>> GetTransaction([FromQuery] TransactionRequest request)
+    [SwaggerOperation(Summary = "Получение транзакций")]
+    public async Task<ActionResult<List<TransactionDto>>> GetTransaction([FromQuery] TransactionRequest request)
     {
-        Transaction? transaction = await _transactionService.FirstOrDefault(request);
-        if (transaction == null)
-        {
-            return NoContent();
-        }
+        List<Transaction> transactions = await _transactionService.TakeAsync(request);
+        List<TransactionDto> dtos = transactions.Select(TransactionConverter.Convert).ToList();
 
-        TransactionDto dto = TransactionConverter.Convert(transaction);
-
-        return Ok(dto);
+        return Ok(dtos);
     }
 }
