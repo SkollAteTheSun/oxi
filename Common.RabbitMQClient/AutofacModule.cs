@@ -14,8 +14,10 @@ public class AutofacModule : Module
 
     protected override void Load(ContainerBuilder builder)
     {
+        var uri = new Uri(_settings.Url);
+
         builder.Register(ctx => new RabbitMQApiClient(
-                new Uri($"http://{_settings.Host}:{_settings.Port}"),
+                uri,
                 _settings.Username,
                 _settings.Password))
             .As<IRabbitMQApiClient>()
@@ -23,7 +25,7 @@ public class AutofacModule : Module
 
         ConnectionFactory factory = new ConnectionFactory
         {
-            HostName = _settings.Host,
+            HostName = uri.Host,
             UserName = _settings.Username,
             Password = _settings.Password,
             ConsumerDispatchConcurrency = _settings.ConsumerDispatchConcurrency

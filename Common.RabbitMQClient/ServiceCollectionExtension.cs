@@ -10,14 +10,16 @@ public static class ServiceCollectionExtension
 {
     public static void AddRabbitMQ(this IServiceCollection services, RabbitMQSettings settings)
     {
+        var uri = new Uri(settings.Url);
+
         services.AddSingleton<IRabbitMQApiClient, RabbitMQApiClient>(provider => new RabbitMQApiClient(
-            new Uri($"http://{settings.Host}:{settings.Port}"),
+            uri,
             settings.Username,
             settings.Password));
 
         ConnectionFactory factory = new ConnectionFactory
         {
-            HostName = settings.Host,
+            HostName = uri.Host,
             UserName = settings.Username,
             Password = settings.Password,
             ConsumerDispatchConcurrency = settings.ConsumerDispatchConcurrency

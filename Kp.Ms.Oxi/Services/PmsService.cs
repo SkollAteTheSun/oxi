@@ -5,6 +5,7 @@ using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Request;
+using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -88,17 +89,23 @@ public class PmsService
         }
     }
 
-    public async ValueTask<bool> AddCheckOutTasksAsync(IEnumerable<CheckOutInfo> checkOuts)
+    public async ValueTask<IEnumerable<CheckOutResult>> AddCheckOutTasksAsync(IEnumerable<CheckOutInfo> checkOuts)
     {
-        var errorList = new List<string>();
+        var resultList = new List<CheckOutResult>();
 
         foreach (var checkOut in checkOuts)
         {
+            var result = new CheckOutResult()
+            {
+                HotelCode = checkOut.HotelCode,
+                ExternalId = checkOut.ExternalId
+            };
+
             try
             {
                 await LogCheckOut(checkOut, CheckOutProcessingStatus.Detected);
 
-                if (string.IsNullOrWhiteSpace(checkOut.HotelCode))
+                if (!_hotels.ContainsKey(checkOut.HotelCode))
                 {
                     throw new Exception($"The hotel with code \"{checkOut.HotelCode}\" not found.");
                 }
@@ -114,19 +121,19 @@ public class PmsService
                     checkOut);
 
                 await LogCheckOut(checkOut, CheckOutProcessingStatus.Queued);
+
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                errorList.Add($"{checkOut.HotelCode}-{checkOut.Id}: {ex.Message}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
             }
+
+            resultList.Add(result);
         }
 
-        if (errorList.Count > 0)
-        {
-            _logger.LogError($"Failed to add check-outs to queue: {string.Join(";", errorList)}");
-        }
-
-        return true;
+        return resultList;
     }
 
     private async ValueTask<Hotel> SaveHotel(Hotel hotel)
