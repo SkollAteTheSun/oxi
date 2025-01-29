@@ -15,7 +15,7 @@ public class HotelBuilder : IEntityTypeConfiguration<Hotel>
         builder
             .Property(hotel => hotel.Id)
             .HasColumnName("id")
-            .HasDefaultValueSql("gen_random_uuid()");
+            .IsRequired();
         builder
             .Property(hotel => hotel.Name)
             .HasColumnName("name")

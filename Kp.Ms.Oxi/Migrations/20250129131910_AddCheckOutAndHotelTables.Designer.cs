@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Kp.Ms.Oxi.Migrations
 {
     [DbContext(typeof(DefaultContext))]
-    [Migration("20250121103052_AddCheckOutAndHotelTables")]
+    [Migration("20250129131910_AddCheckOutAndHotelTables")]
     partial class AddCheckOutAndHotelTables
     {
         /// <inheritdoc />
@@ -30,8 +30,7 @@ namespace Kp.Ms.Oxi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CheckOutDate")
                         .HasColumnType("timestamp with time zone")
@@ -77,8 +76,7 @@ namespace Kp.Ms.Oxi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()

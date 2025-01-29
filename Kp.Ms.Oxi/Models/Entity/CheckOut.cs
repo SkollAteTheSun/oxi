@@ -11,7 +11,8 @@ public class CheckOut
     public DateTime UpdatedAt { get; set; }
 
     public CheckOut()
-    {
+    { 
+        Id = Guid.NewGuid();
         UpdatedAt = DateTime.UtcNow;
     }
 }
