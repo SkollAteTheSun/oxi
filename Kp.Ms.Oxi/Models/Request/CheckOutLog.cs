@@ -1,6 +1,4 @@
-﻿using Kp.Ms.Oxi.Models.Enums;
-
-namespace Kp.Ms.Oxi.Models.Request;
+﻿namespace Kp.Ms.Oxi.Models.Request;
 
 public class CheckOutLog
 {
@@ -11,6 +9,7 @@ public class CheckOutLog
     public string HotelCode { get; set; }
     public DateTime Timestamp { get; set; }
     public string Status { get; set; }
+    public string Description { get; set; }
 
     public CheckOutLog()
     {

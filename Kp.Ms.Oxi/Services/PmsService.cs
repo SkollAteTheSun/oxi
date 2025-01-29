@@ -30,7 +30,7 @@ public class PmsService
     private const string ROUTING_PREFIX = "check-out-routing";
 
     private readonly IDictionary<string, string> _mindboxDefaultHeaders;
-    private const string _authScheme = "Bearer 2|";
+    private const string _authScheme = "Bearer";
 
     public PmsService(
         ILogger<PmsService> logger,
@@ -49,7 +49,7 @@ public class PmsService
 
         _mindboxDefaultHeaders = new Dictionary<string, string>()
         {
-            { HeaderNames.Authorization, _authScheme + _settings.Mindbox.Token }
+            { HeaderNames.Authorization, $"{_authScheme} {_settings.Mindbox.Token}" }
         };
 
         using (var context = _contextFactory.CreateDbContext())
@@ -171,6 +171,8 @@ public class PmsService
 
                     await SendToBooking(checkOut);
 
+                    await SendToShop(checkOut);
+
                     await SendToMindbox(checkOut);
 
                     await context.SaveChangesAsync();
@@ -183,7 +185,9 @@ public class PmsService
                     var errorMessage = $"An error occurred while processing the check-out. {ex.Message}";
                     _logger.LogError(errorMessage);
 
-                    await SendErrorToMail(errorMessage);
+                    await LogCheckOut(checkOut, CheckOutProcessingStatus.Failed, errorMessage);
+
+                    await SendErrorToMail(checkOut, errorMessage);
 
                     throw ex;
                 }
@@ -191,34 +195,87 @@ public class PmsService
         });
     }
 
-    private async ValueTask SendToMindbox(CheckOutInfo checkOut)
-    {
-        _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Mindbox...");
-
-        await _httpClient.PostAsync<MindboxContract, object>(_settings.Mindbox.Url, new MindboxContract()
-        {
-            OrderId = checkOut.ExternalId,
-            Status = 5,
-            Source = _settings.Mindbox.Source
-        }, headers: _mindboxDefaultHeaders);
-
-        await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToMindbox);
-
-        _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Mindbox successfully.");
-    }
-
     private async ValueTask SendToBooking(CheckOutInfo checkOut)
     {
-        _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Booking...");
+        try
+        {
+            _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Booking...");
 
-        await _httpClient.PostAsync<object, object>(_settings.Booking.Url, new (){ });
+            var contract = new BookingContract()
+            {
+                ReservationNumber = checkOut.BookingId,
+                Date = checkOut.CheckOutDate
+            };
 
-        await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToBooking);
+            var result = await _httpClient.PostAsync<BookingContract, object>(_settings.Booking.Url, contract);
 
-        _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Booking successfully.");
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToBooking);
+
+            _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Booking successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while sendind check-out to Booking. {ex.Message}");
+        }
     }
 
-    private async ValueTask SendErrorToMail(string error)
+    private async ValueTask SendToShop(CheckOutInfo checkOut)
+    {
+        try
+        {
+            _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
+
+            var reservationId = checkOut.BookingId.Split("-").LastOrDefault();
+
+            var contract = new ShopReservationContract()
+            {
+                Key = _settings.Shop.ApiKey,
+                Number = checkOut.BookingId,
+                Id = reservationId,
+                Status = ShopReservationStatus.finished.ToString()
+            };
+
+            var result = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.Shop.Url, contract);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToShop);
+
+            _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Shop successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while sendind check-out to Shop. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendToMindbox(CheckOutInfo checkOut)
+    {
+        try
+        {
+            _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Mindbox...");
+
+            var contract = new MindboxContract()
+            {
+                OrderId = checkOut.BookingId,
+                Status = 5,
+                Source = _settings.Mindbox.Source
+            };
+
+            var result = await _httpClient.PostAsync<MindboxContract, object>(
+                _settings.Mindbox.Url,
+                contract,
+                headers: _mindboxDefaultHeaders);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToMindbox);
+
+            _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Mindbox successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while sendind check-out to Mindbox. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendErrorToMail(CheckOutInfo checkOut, string error)
     {
         try
         {
@@ -228,11 +285,11 @@ public class PmsService
                     ToEmail = email,
                     Parameters = new MailParameters
                     {
-                        Content = error
+                        Content = $"<h3>{error}</h3><p>{JsonConvert.SerializeObject(checkOut)}</p>"
                     }
                 };
 
-                await _httpClient.PostAsync<Mail, object>(_settings.Mail.Url, mail);
+                var result = await _httpClient.PostAsync<Mail, object>(_settings.Mail.Url, mail);
             }
         }
         catch (Exception ex)
@@ -241,7 +298,7 @@ public class PmsService
         }
     }
 
-    private async ValueTask LogCheckOut(CheckOutInfo checkOut, CheckOutProcessingStatus status)
+    private async ValueTask LogCheckOut(CheckOutInfo checkOut, CheckOutProcessingStatus status, string description = "")
     {
         try
         {
@@ -249,10 +306,11 @@ public class PmsService
             {
                 Id = checkOut.Id,
                 ExternalId = checkOut.ExternalId,
-                BookinglId = checkOut.BookinglId,
+                BookinglId = checkOut.BookingId,
                 CheckOutDate = checkOut.CheckOutDate,
                 HotelCode = checkOut.HotelCode,
-                Status = status.ToString()
+                Status = status.ToString(),
+                Description = description
             }, idx => idx.Index(_settings.LogIndex));
         }
         catch (Exception ex)
