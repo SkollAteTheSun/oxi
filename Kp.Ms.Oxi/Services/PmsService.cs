@@ -5,6 +5,7 @@ using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Request;
+using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -88,17 +89,23 @@ public class PmsService
         }
     }
 
-    public async ValueTask<bool> AddCheckOutTasksAsync(IEnumerable<CheckOutInfo> checkOuts)
+    public async ValueTask<IEnumerable<CheckOutResult>> AddCheckOutTasksAsync(IEnumerable<CheckOutInfo> checkOuts)
     {
-        var errorList = new List<string>();
+        var resultList = new List<CheckOutResult>();
 
         foreach (var checkOut in checkOuts)
         {
+            var result = new CheckOutResult()
+            {
+                HotelCode = checkOut.HotelCode,
+                ExternalId = checkOut.ExternalId
+            };
+
             try
             {
                 await LogCheckOut(checkOut, CheckOutProcessingStatus.Detected);
 
-                if (string.IsNullOrWhiteSpace(checkOut.HotelCode))
+                if (!_hotels.ContainsKey(checkOut.HotelCode))
                 {
                     throw new Exception($"The hotel with code \"{checkOut.HotelCode}\" not found.");
                 }
@@ -114,19 +121,19 @@ public class PmsService
                     checkOut);
 
                 await LogCheckOut(checkOut, CheckOutProcessingStatus.Queued);
+
+                result.Success = true;
             }
             catch (Exception ex)
             {
-                errorList.Add($"{checkOut.HotelCode}-{checkOut.Id}: {ex.Message}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
             }
+
+            resultList.Add(result);
         }
 
-        if (errorList.Count > 0)
-        {
-            _logger.LogError($"Failed to add check-outs to queue: {string.Join(";", errorList)}");
-        }
-
-        return true;
+        return resultList;
     }
 
     private async ValueTask<Hotel> SaveHotel(Hotel hotel)
@@ -149,39 +156,23 @@ public class PmsService
             _rabbitMQClient.CreateConsumer($"{EXCHANGE_PREFIX}-{id}", $"{QUEUE_PREFIX}-{id}", $"{ROUTING_PREFIX}-{id}", async (model, arg) =>
             {
                 CheckOutInfo checkOut = null;
-                
-                using var context = await _contextFactory.CreateDbContextAsync();
 
                 try
                 {
                     var body = arg.Body.ToArray();
                     checkOut = JsonConvert.DeserializeObject<CheckOutInfo>(Encoding.UTF8.GetString(body));
 
-                    var checkoutEntity = new CheckOut()
-                    {
-                        PmsId = checkOut.Id,
-                        ExternalId = checkOut.ExternalId,
-                        CheckOutDate = checkOut.CheckOutDate,
-                        HotelCode = checkOut.HotelCode
-                    };
+                    await SavingPipeline(checkOut, async () =>
+                    { 
+                        await SendToBooking(checkOut);
 
-                    await context
-                        .CheckOuts
-                        .AddAsync(checkoutEntity);
+                        await SendToShop(checkOut);
 
-                    await SendToBooking(checkOut);
-
-                    await SendToShop(checkOut);
-
-                    await SendToMindbox(checkOut);
-
-                    await context.SaveChangesAsync();
-                    await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
+                        await SendToMindbox(checkOut);
+                    });
                 }
                 catch (Exception ex)
                 {
-                    await context.DisposeAsync();
-
                     var errorMessage = $"An error occurred while processing the check-out. {ex.Message}";
                     _logger.LogError(errorMessage);
 
@@ -195,16 +186,52 @@ public class PmsService
         });
     }
 
+    private async ValueTask SavingPipeline(CheckOutInfo checkOut, Func<ValueTask> pipeline)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+
+        try
+        {
+            var checkoutEntity = new CheckOut()
+            {
+                PmsId = checkOut.Id,
+                ExternalId = checkOut.ExternalId,
+                CheckOutDate = checkOut.CheckOutDate,
+                HotelCode = checkOut.HotelCode
+            };
+
+            await context
+                .CheckOuts
+                .AddAsync(checkoutEntity);
+
+            await pipeline.Invoke();
+
+            await context.SaveChangesAsync();
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
+        }
+        catch (Exception ex)
+        {
+            await context.DisposeAsync();
+            throw ex;
+        }
+    }
+
     private async ValueTask SendToBooking(CheckOutInfo checkOut)
     {
         try
         {
+            if (!_settings.Booking.Enabled)
+            {
+                return;
+            }
+
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Booking...");
 
             var contract = new BookingContract()
             {
-                ReservationNumber = checkOut.BookingId,
-                Date = checkOut.CheckOutDate
+                ReservationId = checkOut.ExternalId,
+                DateCheckOut = checkOut.CheckOutDate,
+                ApiToken = _settings.Booking.ApiToken
             };
 
             var result = await _httpClient.PostAsync<BookingContract, object>(_settings.Booking.Url, contract);
@@ -223,6 +250,11 @@ public class PmsService
     {
         try
         {
+            if (!_settings.Shop.Enabled)
+            {
+                return;
+            }
+
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
 
             var reservationId = checkOut.BookingId.Split("-").LastOrDefault();
@@ -251,6 +283,11 @@ public class PmsService
     {
         try
         {
+            if (!_settings.Mindbox.Enabled)
+            {
+                return;
+            }
+
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Mindbox...");
 
             var contract = new MindboxContract()

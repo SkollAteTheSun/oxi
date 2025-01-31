@@ -15,7 +15,7 @@ public class CheckOutBuilder : IEntityTypeConfiguration<CheckOut>
         builder
             .Property(checkOut => checkOut.Id)
             .HasColumnName("id")
-            .HasDefaultValueSql("gen_random_uuid()");
+            .IsRequired();
         builder
             .Property(checkOut => checkOut.PmsId)
             .HasColumnName("pms_id")

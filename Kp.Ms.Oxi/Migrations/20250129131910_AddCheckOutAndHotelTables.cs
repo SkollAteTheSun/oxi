@@ -15,7 +15,7 @@ namespace Kp.Ms.Oxi.Migrations
                 name: "check_out",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
                     pms_id = table.Column<string>(type: "text", nullable: false),
                     external_id = table.Column<string>(type: "text", nullable: false),
                     check_out_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -32,7 +32,7 @@ namespace Kp.Ms.Oxi.Migrations
                 name: "hotel",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
                     code = table.Column<string>(type: "text", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
