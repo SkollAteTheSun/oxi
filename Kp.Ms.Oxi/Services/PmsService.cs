@@ -1,0 +1,358 @@
+﻿using Common.HttpClientWrapper;
+using Common.RabbitMQClient;
+using Kp.Ms.Oxi.Config;
+using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Request;
+using Kp.Ms.Oxi.Models.Response;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
+using Newtonsoft.Json;
+using OpenSearch.Client;
+using System.Text;
+
+namespace Kp.Ms.Oxi.Services;
+
+public class PmsService
+{
+    private readonly ILogger<PmsService> _logger;
+    private readonly IRabbitMQClient _rabbitMQClient;
+    private readonly IHttpClientWrapper _httpClient;
+    private readonly OpenSearchClient _openSearchClient;
+    private readonly CheckOutProcessingSettings _settings;
+    private readonly IDbContextFactory<DefaultContext> _contextFactory;
+
+    private IDictionary<string, Hotel> _hotels = new Dictionary<string, Hotel>();
+
+    private const string QUEUE_PREFIX = "check-out-queue";
+    private const string EXCHANGE_PREFIX = "check-out-exchange";
+    private const string ROUTING_PREFIX = "check-out-routing";
+
+    private readonly IDictionary<string, string> _mindboxDefaultHeaders;
+    private const string _authScheme = "Bearer";
+
+    public PmsService(
+        ILogger<PmsService> logger,
+        IRabbitMQClient rabbitMQClient,
+        IHttpClientWrapper httpClient,
+        OpenSearchClient openSearchClient,
+        IOptions<CheckOutProcessingSettings> settings,
+        IDbContextFactory<DefaultContext> contextFactory)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _rabbitMQClient = rabbitMQClient ?? throw new ArgumentNullException(nameof(rabbitMQClient));
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _openSearchClient = openSearchClient ?? throw new ArgumentNullException(nameof(openSearchClient));
+        _settings = settings.Value ?? throw new ArgumentNullException(nameof(settings));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+
+        _mindboxDefaultHeaders = new Dictionary<string, string>()
+        {
+            { HeaderNames.Authorization, $"{_authScheme} {_settings.Mindbox.Token}" }
+        };
+
+        using (var context = _contextFactory.CreateDbContext())
+        {
+            _hotels = context
+                .Hotels
+                .ToDictionary(key => key.Code, value => value);
+        }
+
+        CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
+    }
+
+    public IEnumerable<Hotel> GetHotels()
+    {
+        return _hotels.Values.ToList();
+    }
+
+    public async ValueTask<Hotel> AddHotel(HotelContract hotel)
+    {
+        if (_hotels.TryGetValue(hotel.Code, out var existsHotel))
+        {
+            return existsHotel;
+        }
+        else
+        {
+            var newHotel = await SaveHotel(new Hotel()
+            {
+                Name = hotel.Name,
+                Code = hotel.Code
+            });
+            _hotels.Add(newHotel.Code, newHotel);
+
+            CreateProcessingChannelsForCheckOuts(new List<string>() { newHotel.Code });
+
+            return newHotel;
+        }
+    }
+
+    public async ValueTask<IEnumerable<CheckOutResult>> AddCheckOutTasksAsync(IEnumerable<CheckOutInfo> checkOuts)
+    {
+        var resultList = new List<CheckOutResult>();
+
+        foreach (var checkOut in checkOuts)
+        {
+            var result = new CheckOutResult()
+            {
+                HotelCode = checkOut.HotelCode,
+                ExternalId = checkOut.ExternalId
+            };
+
+            try
+            {
+                await LogCheckOut(checkOut, CheckOutProcessingStatus.Detected);
+
+                if (!_hotels.ContainsKey(checkOut.HotelCode))
+                {
+                    throw new Exception($"The hotel with code \"{checkOut.HotelCode}\" not found.");
+                }
+                if (string.IsNullOrWhiteSpace(checkOut.ExternalId))
+                {
+                    throw new Exception($"СheckOut \"{checkOut.HotelCode}-{checkOut.Id}\" has no external identifier set.");
+                }
+
+                _rabbitMQClient.SendMessage(
+                    $"{EXCHANGE_PREFIX}-{checkOut.HotelCode}",
+                    $"{QUEUE_PREFIX}-{checkOut.HotelCode}",
+                    $"{ROUTING_PREFIX}-{checkOut.HotelCode}",
+                    checkOut);
+
+                await LogCheckOut(checkOut, CheckOutProcessingStatus.Queued);
+
+                result.Success = true;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
+            }
+
+            resultList.Add(result);
+        }
+
+        return resultList;
+    }
+
+    private async ValueTask<Hotel> SaveHotel(Hotel hotel)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+
+        var hotelEntity = await context
+            .Hotels
+            .AddAsync(hotel);
+        await context.SaveChangesAsync();
+
+        return hotelEntity.Entity;
+    }
+
+    private void CreateProcessingChannelsForCheckOuts(List<string> hotels)
+    {
+        hotels?.ForEach(id =>
+        {
+            _rabbitMQClient.CreateQueue($"{EXCHANGE_PREFIX}-{id}", $"{QUEUE_PREFIX}-{id}", $"{ROUTING_PREFIX}-{id}");
+            _rabbitMQClient.CreateConsumer($"{EXCHANGE_PREFIX}-{id}", $"{QUEUE_PREFIX}-{id}", $"{ROUTING_PREFIX}-{id}", async (model, arg) =>
+            {
+                CheckOutInfo checkOut = null;
+
+                try
+                {
+                    var body = arg.Body.ToArray();
+                    checkOut = JsonConvert.DeserializeObject<CheckOutInfo>(Encoding.UTF8.GetString(body));
+
+                    await SavingPipeline(checkOut, async () =>
+                    { 
+                        await SendToBooking(checkOut);
+
+                        await SendToShop(checkOut);
+
+                        await SendToMindbox(checkOut);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    var errorMessage = $"An error occurred while processing the check-out. {ex.Message}";
+                    _logger.LogError(errorMessage);
+
+                    await LogCheckOut(checkOut, CheckOutProcessingStatus.Failed, errorMessage);
+
+                    await SendErrorToMail(checkOut, errorMessage);
+
+                    throw ex;
+                }
+            });
+        });
+    }
+
+    private async ValueTask SavingPipeline(CheckOutInfo checkOut, Func<ValueTask> pipeline)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+
+        try
+        {
+            var checkoutEntity = new CheckOut()
+            {
+                PmsId = checkOut.Id,
+                ExternalId = checkOut.ExternalId,
+                CheckOutDate = checkOut.CheckOutDate,
+                HotelCode = checkOut.HotelCode
+            };
+
+            await context
+                .CheckOuts
+                .AddAsync(checkoutEntity);
+
+            await pipeline.Invoke();
+
+            await context.SaveChangesAsync();
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
+        }
+        catch (Exception ex)
+        {
+            await context.DisposeAsync();
+            throw ex;
+        }
+    }
+
+    private async ValueTask SendToBooking(CheckOutInfo checkOut)
+    {
+        try
+        {
+            if (!_settings.Booking.Enabled)
+            {
+                return;
+            }
+
+            _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Booking...");
+
+            var contract = new BookingContract()
+            {
+                ReservationId = checkOut.ExternalId,
+                DateCheckOut = checkOut.CheckOutDate,
+                ApiToken = _settings.Booking.ApiToken
+            };
+
+            var result = await _httpClient.PostAsync<BookingContract, object>(_settings.Booking.Url, contract);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToBooking);
+
+            _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Booking successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while sendind check-out to Booking. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendToShop(CheckOutInfo checkOut)
+    {
+        try
+        {
+            if (!_settings.Shop.Enabled)
+            {
+                return;
+            }
+
+            _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
+
+            var reservationId = checkOut.BookingId.Split("-").LastOrDefault();
+
+            var contract = new ShopReservationContract()
+            {
+                Key = _settings.Shop.ApiKey,
+                Number = checkOut.BookingId,
+                Id = reservationId,
+                Status = ShopReservationStatus.finished.ToString()
+            };
+
+            var result = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.Shop.Url, contract);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToShop);
+
+            _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Shop successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while sendind check-out to Shop. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendToMindbox(CheckOutInfo checkOut)
+    {
+        try
+        {
+            if (!_settings.Mindbox.Enabled)
+            {
+                return;
+            }
+
+            _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Mindbox...");
+
+            var contract = new MindboxContract()
+            {
+                OrderId = checkOut.BookingId,
+                Status = 5,
+                Source = _settings.Mindbox.Source
+            };
+
+            var result = await _httpClient.PostAsync<MindboxContract, object>(
+                _settings.Mindbox.Url,
+                contract,
+                headers: _mindboxDefaultHeaders);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToMindbox);
+
+            _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Mindbox successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while sendind check-out to Mindbox. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendErrorToMail(CheckOutInfo checkOut, string error)
+    {
+        try
+        {
+            foreach (var email in _settings.Mail.Emails) {
+                var mail = new Mail()
+                {
+                    ToEmail = email,
+                    Parameters = new MailParameters
+                    {
+                        Content = $"<h3>{error}</h3><p>{JsonConvert.SerializeObject(checkOut)}</p>"
+                    }
+                };
+
+                var result = await _httpClient.PostAsync<Mail, object>(_settings.Mail.Url, mail);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"An error occurred while sendind error to mail. {ex.Message}");
+        }
+    }
+
+    private async ValueTask LogCheckOut(CheckOutInfo checkOut, CheckOutProcessingStatus status, string description = "")
+    {
+        try
+        {
+            var result = await _openSearchClient.IndexAsync(new CheckOutLog()
+            {
+                Id = checkOut.Id,
+                ExternalId = checkOut.ExternalId,
+                BookinglId = checkOut.BookingId,
+                CheckOutDate = checkOut.CheckOutDate,
+                HotelCode = checkOut.HotelCode,
+                Status = status.ToString(),
+                Description = description
+            }, idx => idx.Index(_settings.LogIndex));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"An error occurred while writing log to OpenSearch. {ex.Message}");
+        }
+    }
+}
