@@ -98,6 +98,78 @@ namespace Kp.Ms.Oxi.Migrations
                         .HasDatabaseName("ix_hotel_code");
 
                     b.ToTable("hotel", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("8b9124dd-de35-4aa3-81fd-0f44640152c7"),
+                            Code = "RIXOS",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Риксос Красная Поляна Сочи"
+                        },
+                        new
+                        {
+                            Id = new Guid("420314bf-ed9d-4dff-b911-a599cb2648e1"),
+                            Code = "AERMC",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Сочи Марриотт Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("0fa69c57-d9cd-4632-aad0-76d902eebeda"),
+                            Code = "HB769",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Новотель Фит Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("122ca673-51d6-4286-ad96-fa61dac1e378"),
+                            Code = "HB530",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Новотель Резорт и спа Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("f1382e97-b8a1-4f1c-8062-4669b6e77959"),
+                            Code = "HB755",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Мовенпик Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("32ef195f-6fdf-4d2b-be3d-c05b74e64305"),
+                            Code = "SCODL",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Долина 960"
+                        },
+                        new
+                        {
+                            Id = new Guid("036e9caa-e468-4926-b36b-150bc7b145be"),
+                            Code = "HB754",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Ибис Стайлс Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("742f36bd-1daa-4c1c-a504-cae36bcfda17"),
+                            Code = "HB933",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Панорама by Mercure Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("30c78768-fb1a-41b7-891b-912697bff9d2"),
+                            Code = "AERCS",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Кортъярд Марриотт Сочи Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("cf64c90a-18ab-4f4e-bd32-fd9c673f7990"),
+                            Code = "APART",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Апартаменты Курорта Красная Поляна"
+                        });
                 });
 
             modelBuilder.Entity("Kp.Ms.Oxi.Models.Entity.Transaction", b =>
