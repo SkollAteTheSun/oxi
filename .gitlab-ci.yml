@@ -30,7 +30,7 @@ deploy_job:
   stage: deploy
   script:
     - sudo systemctl stop $SERVICE
-    - cd $MS_PATH/src
+    - cd $MIGRATION_PATH
     - dotnet ef database update -c DefaultContext -- --environment Staging
     - rm -r $MS_PATH/web/*
     - mv $MS_PATH/publish/*  $MS_PATH/web
