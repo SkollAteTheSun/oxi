@@ -108,6 +108,7 @@ builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
 builder.Services.AddTransient<MessageService>();
 builder.Services.AddTransient<TransactionService>();
+builder.Services.AddTransient<QuotaService>();
 
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();

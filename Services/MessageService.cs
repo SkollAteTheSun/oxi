@@ -7,6 +7,7 @@ using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
 using Kp.Ms.Oxi.Models.Response;
@@ -21,19 +22,21 @@ public class MessageService
     private readonly DefaultContext _context;
     private readonly LogService _logService;
     private readonly ReservationService _reservationService;
+    private readonly QuotaService _quotaService;
 
     public MessageService(IConfiguration configuration, DefaultContext context, LogService logService,
-        ReservationService reservationService)
+        ReservationService reservationService, QuotaService quotaService)
     {
         _configuration = configuration;
         _context = context;
         _logService = logService;
         _reservationService = reservationService;
+        _quotaService = quotaService;
     }
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
     {
-        _logService.Log(LogLevel.Information, $"Input message: \n{message}");
+        //_logService.Log(LogLevel.Information, $"Input message: \n{message}");
 
         JsonSerializerOptions jso = new JsonSerializerOptions
         {
@@ -42,7 +45,7 @@ public class MessageService
 
         if (messageReceiveRequest != null)
         {
-            _logService.Log(LogLevel.Information, $"Query params: \n{JsonSerializer.Serialize(messageReceiveRequest, jso)}");
+          //  _logService.Log(LogLevel.Information, $"Query params: \n{JsonSerializer.Serialize(messageReceiveRequest, jso)}");
         }
 
         XmlDocument xml = new XmlDocument();
@@ -52,9 +55,61 @@ public class MessageService
         }
         catch (Exception ex)
         {
-            _logService.Log(LogLevel.Error, $"Xml parse error: {ex.Message}");
+            //_logService.Log(LogLevel.Error, $"Xml parse error: {ex.Message}");
             return false;
         }
+        ///------------------
+
+        /* Делаем json из xml
+         * 
+        XmlElement? root = xml.DocumentElement;
+        if (root == null)
+        {
+            //_logService.Log(LogLevel.Error, "Root element is missing");
+            return false;
+        }
+
+        // Проверка на тип сообщения InventorySnapshot
+        if (root.Name == "RtavMessage" && root.NamespaceURI.Contains("rtav.fidelio"))
+        {
+            //_logService.Log(LogLevel.Information, "Received inventory snapshot message");
+            string? jsonResult = await _quotaService.ConvertXmlToJson(xml);
+
+            if (jsonResult == null)
+            {
+                //     _logService.Log(LogLevel.Error, "Ошибка обработки сообщения.");
+                return false;
+            }
+
+            // _logService.Log(LogLevel.Information, $"Converted JSON: {jsonResult}");
+            return true;
+        }
+        *
+        */
+
+        var messageObject = await _quotaService.DeserializeXmlToMessage(xml);
+        if (messageObject == null)
+        {
+            //_logService.Log(LogLevel.Error, "Ошибка обработки сообщения.");
+            return false;
+        }
+
+        var roomQuotas = _quotaService.MapToRoomQuotas(messageObject);
+
+        if (roomQuotas.Any())
+        {
+            //сохраняем в базу
+
+            /*
+            _context.RoomQuotas.AddRange(roomQuotas);
+            await _context.SaveChangesAsync();
+            */
+
+            //_logService.Log(LogLevel.Information, $"{roomQuotas.Count} записей успешно сохранено в базу.");
+        }
+
+
+        ///------------------
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))
         {
