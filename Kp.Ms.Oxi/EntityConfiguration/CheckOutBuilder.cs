@@ -41,7 +41,7 @@ public class CheckOutBuilder : IEntityTypeConfiguration<CheckOut>
             .HasColumnName("updated_at");
 
         builder
-            .HasIndex(checkOut => checkOut.ExternalId, "ix_check_out_external_id")
+            .HasIndex(checkOut => new { checkOut.HotelCode, checkOut.ExternalId }, "ix_check_out_hotel_code_external_id")
             .IsUnique();
     }
 }

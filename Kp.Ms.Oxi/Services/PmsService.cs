@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
+using Npgsql;
 using OpenSearch.Client;
 using System.Text;
 
@@ -32,6 +33,7 @@ public class PmsService
 
     private readonly IDictionary<string, string> _mindboxDefaultHeaders;
     private const string _authScheme = "Bearer";
+    private const string _uniqueViolation = "23505";
 
     public PmsService(
         ILogger<PmsService> logger,
@@ -208,6 +210,21 @@ public class PmsService
 
             await context.SaveChangesAsync();
             await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
+        }
+        catch (DbUpdateException ex)
+        {
+            await context.DisposeAsync();
+
+            if (ex.InnerException.GetType() != typeof(PostgresException))
+            {
+                throw ex;
+            }
+
+            var innerException = (PostgresException)ex.InnerException;
+            if (innerException.SqlState != _uniqueViolation)
+            { 
+                throw ex;
+            }
         }
         catch (Exception ex)
         {
