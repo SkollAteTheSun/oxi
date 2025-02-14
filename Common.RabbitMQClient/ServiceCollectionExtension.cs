@@ -10,6 +10,10 @@ public static class ServiceCollectionExtension
 {
     public static void AddRabbitMQ(this IServiceCollection services, RabbitMQSettings settings)
     {
+
+        services.AddSingleton<IRabbitMQClient>(provider => null);
+        return;
+
         var uri = new Uri(settings.Url);
 
         services.AddSingleton<IRabbitMQApiClient, RabbitMQApiClient>(provider => new RabbitMQApiClient(
@@ -31,5 +35,5 @@ public static class ServiceCollectionExtension
                 connection,
                 settings,
                 provider.GetService<IRabbitMQApiClient>()));
-    } 
+    }
 }

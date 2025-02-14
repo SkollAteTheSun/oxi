@@ -1,5 +1,7 @@
-﻿using Kp.Ms.Oxi.Models.Entity;
+﻿using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Serialization;
@@ -9,83 +11,29 @@ namespace Kp.Ms.Oxi.Services;
 public class QuotaService
 {
     private readonly LogService _logService;
-    public QuotaService(LogService logService)
+    private readonly IDbContextFactory<BookingContext> _contextFactory;
+    public QuotaService(LogService logService, IDbContextFactory<BookingContext> contextFactory)
     {
         _logService = logService;
+        _contextFactory = contextFactory;
     }
 
-    /*
-    public string ConvertXmlToJson(string xmlInput)
+    public async Task<List<BookingRoomQuota>> MapToRoomQuotas(RtavMessage message)
     {
-        XmlSerializer serializer = new XmlSerializer(typeof(RtavMessage));
-
-        using StringReader reader = new StringReader(xmlInput);
-        var deserializedObject = (RtavMessage?)serializer.Deserialize(reader);
-
-        if (deserializedObject == null)
-        {
-            throw new InvalidOperationException("Ошибка десериализации XML.");
-        }
-
-        return JsonSerializer.Serialize(deserializedObject, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
-    }
-    */
-
-    public async Task<string?> ConvertXmlToJson(XmlDocument xmlDocument)
-    {
-        string? serializedResult = null; // Переменная для хранения сериализованного результата
-
-        try
-        {
-            var rootNode = xmlDocument.DocumentElement;
-            if (rootNode == null)
-            {
-                //_logService.Log(LogLevel.Error, "XML не содержит корневого элемента.");
-                return null;
-            }
-
-            XmlSerializer serializer = new XmlSerializer(typeof(RtavMessage));
-            using StringReader reader = new StringReader(rootNode.OuterXml);
-
-            var deserializedObject = (RtavMessage?)serializer.Deserialize(reader);
-            if (deserializedObject == null)
-            {
-                //_logService.Log(LogLevel.Error, "Ошибка десериализации XML.");
-                return null;
-            }
-
-            serializedResult = JsonSerializer.Serialize(deserializedObject, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            //_logService.Log(LogLevel.Information, $"Сериализованный JSON: {serializedResult}");
-        }
-        catch (Exception ex)
-        {
-            //_logService.Log(LogLevel.Error, $"Ошибка обработки XML: {ex.Message}");
-            return null;
-        }
-
-        return serializedResult;
-    }
-
-    /*
-    return JsonSerializer.Serialize(deserializedObject, new JsonSerializerOptions
-    {
-        WriteIndented = true
-    });
-    */
-
-    public List<RoomQuota> MapToRoomQuotas(RtavMessage message)
-    {
-        var roomQuotas = new List<RoomQuota>();
+        var roomQuotas = new List<BookingRoomQuota>();
 
         if (message.HotelReference == null || message.DailyInventories == null)
+        {
+            _logService.Log(LogLevel.Warning, "Invalid message: No hotel or quota data.");
             return roomQuotas;
+        }
+
+        var hotelId = await GetHotelIdByCode(message.HotelReference.HotelCode);
+        if (hotelId == null)
+        {
+            _logService.Log(LogLevel.Warning, $"Hotel with code: {message.HotelReference.HotelCode} not found in database.");
+            return roomQuotas;
+        }
 
         foreach (var inventory in message.DailyInventories)
         {
@@ -93,23 +41,27 @@ public class QuotaService
 
             foreach (var roomTypeInventory in inventory.RoomTypeInventories)
             {
-                var roomQuota = new RoomQuota
+                var roomTypeId = await GetRoomTypeIdByCode(roomTypeInventory.RoomType, hotelId.Value);
+                if (roomTypeId == null) continue;
+
+                var roomQuota = new BookingRoomQuota
                 {
-                    HotelId = long.Parse(message.HotelReference.HotelCode), // Тут вообще надо маппить Opera -> Booking Id
-                    RoomTypeId = long.Parse(roomTypeInventory.RoomType),
+                    HotelId = hotelId.Value,
+                    RoomTypeId = roomTypeId.Value,
                     Date = inventory.Datum,
                     Amount = roomTypeInventory.Available,
-                    Close = roomTypeInventory.Available <= 0 // тут типа если количество доступных комнат <= 0, то закрываем квоту?
+                    Close = roomTypeInventory.Available <= 0
                 };
 
                 roomQuotas.Add(roomQuota);
             }
         }
 
+        _logService.Log(LogLevel.Information, $"Successfully matched {roomQuotas.Count} quotas for hotelID: {hotelId.Value}."); ;
         return roomQuotas;
     }
 
-    public async Task<RtavMessage?> DeserializeXmlToMessage(XmlDocument xmlDocument)
+    public RtavMessage? DeserializeXmlToMessage(XmlDocument xmlDocument)
     {
         try
         {
@@ -117,15 +69,80 @@ public class QuotaService
             if (rootNode == null) return null;
 
             XmlSerializer serializer = new XmlSerializer(typeof(RtavMessage));
-            using StringReader reader = new StringReader(rootNode.OuterXml);
+            using var reader = new StringReader(rootNode.OuterXml);
+            using var xmlReader = XmlReader.Create(reader);
 
-            return (RtavMessage?)serializer.Deserialize(reader);
+            return (RtavMessage?)serializer.Deserialize(xmlReader);
         }
         catch (Exception ex)
         {
-            //_logService.Log(LogLevel.Error, $"Ошибка десериализации XML: {ex.Message}");
+            _logService.Log(LogLevel.Error, $"XML deserialization error: {ex.Message}");
             return null;
         }
     }
 
+    public async Task<ulong?> GetHotelIdByCode(string hotelCode)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var hotelId = await context.Hotels
+            .AsNoTracking()
+            .Where(h => h.HrsCode == hotelCode)
+            .Select(h => (ulong?)h.Id)
+            .FirstOrDefaultAsync();
+
+        if (hotelId == null)
+        {
+            _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
+        }
+
+        return hotelId;
+    }
+
+    public async Task<ulong?> GetRoomTypeIdByCode(string roomTypeCode, ulong hotelId)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var roomTypeId = await context.RoomTypes
+            .AsNoTracking()
+            .Where(rt => rt.HrsCode == roomTypeCode && rt.HotelId == hotelId)
+            .Select(rt => (ulong?)rt.Id)
+            .FirstOrDefaultAsync();
+
+        if (roomTypeId == null)
+        {
+            _logService.Log(LogLevel.Warning, $"Room type: {roomTypeCode} not found in database for hotelID: {hotelId}.");
+        }
+
+        return roomTypeId;
+    }
+
+    public async Task UpdateRoomQuotas(List<BookingRoomQuota> quotas)
+    {
+        _logService.Log(LogLevel.Information, $"Start updating quotas: {quotas.Count} records.");
+
+        using var context = _contextFactory.CreateDbContext();
+        var existingQuotas = await context.RoomQuotas
+            .Where(q => quotas.Select(x => x.HotelId).Contains(q.HotelId) &&
+                        quotas.Select(x => x.RoomTypeId).Contains(q.RoomTypeId) &&
+                        quotas.Select(x => x.Date).Contains(q.Date))
+            .ToListAsync();
+
+        foreach (var quota in quotas)
+        {
+            var existingQuota = existingQuotas
+                .FirstOrDefault(q => q.HotelId == quota.HotelId && q.RoomTypeId == quota.RoomTypeId && q.Date == quota.Date);
+
+            if (existingQuota != null)
+            {
+                existingQuota.Amount = quota.Amount;
+                existingQuota.Close = quota.Close;
+            }
+            else
+            {
+                context.RoomQuotas.Add(quota);
+            }
+        }
+
+        await context.SaveChangesAsync();
+        _logService.Log(LogLevel.Information, "Quotas updated successfully.");
+    }
 }
