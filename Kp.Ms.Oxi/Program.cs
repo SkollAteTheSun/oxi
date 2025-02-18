@@ -11,8 +11,6 @@ using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 

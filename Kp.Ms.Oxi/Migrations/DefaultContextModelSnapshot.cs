@@ -29,6 +29,10 @@ namespace Kp.Ms.Oxi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("BookingId")
+                        .HasColumnType("text")
+                        .HasColumnName("booking_id");
+
                     b.Property<DateTime>("CheckOutDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("check_out_date");
@@ -40,7 +44,6 @@ namespace Kp.Ms.Oxi.Migrations
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("ExternalId")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("external_id");
 
@@ -61,9 +64,9 @@ namespace Kp.Ms.Oxi.Migrations
                     b.HasKey("Id")
                         .HasName("pk_check_out");
 
-                    b.HasIndex(new[] { "HotelCode", "ExternalId" }, "ix_check_out_hotel_code_external_id")
+                    b.HasIndex(new[] { "HotelCode", "PmsId" }, "ix_check_out_hotel_code_pms_id")
                         .IsUnique()
-                        .HasDatabaseName("ix_check_out_hotel_code_external_id");
+                        .HasDatabaseName("ix_check_out_hotel_code_pms_id");
 
                     b.ToTable("check_out", (string)null);
                 });
@@ -102,70 +105,70 @@ namespace Kp.Ms.Oxi.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("e1082b10-803f-4941-ba29-949d9d227b78"),
+                            Id = new Guid("59e50cc0-9f76-4a5f-b6c7-79334f59a7d9"),
                             Code = "RIXOS",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Риксос Красная Поляна Сочи"
                         },
                         new
                         {
-                            Id = new Guid("b7a41c45-72fd-412b-91f0-ff8df06b78b0"),
+                            Id = new Guid("b4ad5ec4-c25a-40ea-88ce-c037ffec3e03"),
                             Code = "AERMC",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Сочи Марриотт Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("a70bb331-2265-4add-8c4c-c8243cabe74b"),
+                            Id = new Guid("ff700dc8-0e0f-41e0-9a4d-746b25296d11"),
                             Code = "HB769",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Новотель Фит Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("24071a8f-0f2c-4ac1-83d9-d0ddd98faf1f"),
+                            Id = new Guid("16742ceb-8714-4c32-9c8b-7998b24d9aae"),
                             Code = "HB530",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Новотель Резорт и спа Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("22dd8978-a194-4324-a8ca-b24309f62868"),
+                            Id = new Guid("e0cb3488-44b8-4d21-b137-f526ce287b10"),
                             Code = "HB755",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Мовенпик Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("e22b71c4-dc97-4cd0-92bd-18bbf13af536"),
+                            Id = new Guid("d46b4d41-fb17-4331-ba5e-91c980b30721"),
                             Code = "SCODL",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Долина 960"
                         },
                         new
                         {
-                            Id = new Guid("5800a575-4811-430b-a413-a1f8f35134d6"),
+                            Id = new Guid("6910b197-7ed8-467c-ac02-17bdde61e193"),
                             Code = "HB754",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Ибис Стайлс Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("cb76665a-4056-4450-b1ea-a8d94fbd46ad"),
+                            Id = new Guid("d320e8f2-cb3f-4bfb-a73f-0709b804d48d"),
                             Code = "HB933",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Панорама by Mercure Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("e6bf720e-2178-48af-99a1-65eb16d76967"),
+                            Id = new Guid("ab68de50-f9cd-45f3-9306-9de69362e361"),
                             Code = "AERCS",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Кортъярд Марриотт Сочи Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("d71b5f5f-4fad-4a40-ad77-3385befd914f"),
+                            Id = new Guid("1a1635f2-f8fe-41d7-b138-d1f8ca75aa41"),
                             Code = "APART",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Апартаменты Курорта Красная Поляна"
