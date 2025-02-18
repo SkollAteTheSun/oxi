@@ -22,8 +22,10 @@ public class CheckOutBuilder : IEntityTypeConfiguration<CheckOut>
             .IsRequired();
         builder
             .Property(checkOut => checkOut.ExternalId)
-            .HasColumnName("external_id")
-            .IsRequired();
+            .HasColumnName("external_id");
+        builder
+            .Property(checkOut => checkOut.BookingId)
+            .HasColumnName("booking_id");
         builder
             .Property(checkOut => checkOut.CheckOutDate)
             .HasColumnName("check_out_date")
@@ -41,7 +43,7 @@ public class CheckOutBuilder : IEntityTypeConfiguration<CheckOut>
             .HasColumnName("updated_at");
 
         builder
-            .HasIndex(checkOut => checkOut.ExternalId, "ix_check_out_external_id")
+            .HasIndex(checkOut => new { checkOut.HotelCode, checkOut.PmsId }, "ix_check_out_hotel_code_pms_id")
             .IsUnique();
     }
 }
