@@ -37,7 +37,7 @@ public class QuotaService
             return roomQuotas;
         }
 
-        var roomTypeDict = await _bookingService.GetRoomTypeDictionary2(hotelId.Value);
+        var roomTypeDict = await _bookingService.GetRoomTypeDictionary(hotelId.Value);
 
         foreach (var inventory in message.DailyInventories)
         {
