@@ -37,6 +37,8 @@ public class BookingRoomTypes
     public uint? ResourceId { get; set; }
     public ushort? SquareFrom { get; set; }
     public ushort? SquareTo { get; set; }
+
+    [Column("extrabed_capacity")]
     public byte? ExtraBedCapacity { get; set; } = 0;
     public bool NotAvailForChildren { get; set; } = false;
     public bool NotAvailForBaby { get; set; } = false;
