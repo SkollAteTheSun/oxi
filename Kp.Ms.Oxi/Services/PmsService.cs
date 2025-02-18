@@ -198,6 +198,7 @@ public class PmsService
             {
                 PmsId = checkOut.Id,
                 ExternalId = checkOut.ExternalId,
+                BookingId = checkOut.BookingId,
                 CheckOutDate = checkOut.CheckOutDate,
                 HotelCode = checkOut.HotelCode
             };
