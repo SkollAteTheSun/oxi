@@ -111,10 +111,6 @@ public class PmsService
                 {
                     throw new Exception($"The hotel with code \"{checkOut.HotelCode}\" not found.");
                 }
-                if (string.IsNullOrWhiteSpace(checkOut.ExternalId))
-                {
-                    throw new Exception($"СheckOut \"{checkOut.HotelCode}-{checkOut.Id}\" has no external identifier set.");
-                }
 
                 _rabbitMQClient.SendMessage(
                     $"{EXCHANGE_PREFIX}-{checkOut.HotelCode}",
