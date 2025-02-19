@@ -54,14 +54,13 @@ public class PmsService
         {
             { HeaderNames.Authorization, $"{_authScheme} {_settings.Mindbox.Token}" }
         };
-
         using (var context = _contextFactory.CreateDbContext())
         {
             _hotels = context
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
-
+        
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
     }
 

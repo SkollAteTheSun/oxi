@@ -13,6 +13,9 @@ public class BookingContext : DbContext
     // Sql query collections
     public DbSet<RoomRatesVector> RoomRatesVectorRows { get; set; }
     public DbSet<RoomRatesVectorAgg> RoomRatesVectorAggRows { get; set; }
+    public DbSet<BookingHotel> Hotels { get; set; }
+    public DbSet<BookingRoomTypes> RoomTypes { get; set; }
+    public DbSet<BookingRoomQuota> RoomQuotas { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +24,10 @@ public class BookingContext : DbContext
         
         modelBuilder.Entity<RoomRatesVectorAgg>()
             .HasNoKey();
+
+        modelBuilder.Entity<BookingHotel>().ToTable("hotels");
+        modelBuilder.Entity<BookingRoomTypes>().ToTable("room_types");
+        modelBuilder.Entity<BookingRoomQuota>().ToTable("room_quotas");
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

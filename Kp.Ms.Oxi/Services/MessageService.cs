@@ -7,6 +7,7 @@ using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
 using Kp.Ms.Oxi.Models.Response;
@@ -21,14 +22,16 @@ public class MessageService
     private readonly DefaultContext _context;
     private readonly LogService _logService;
     private readonly ReservationService _reservationService;
+    private readonly QuotaService _quotaService;
 
     public MessageService(IConfiguration configuration, DefaultContext context, LogService logService,
-        ReservationService reservationService)
+        ReservationService reservationService, QuotaService quotaService)
     {
         _configuration = configuration;
         _context = context;
         _logService = logService;
         _reservationService = reservationService;
+        _quotaService = quotaService;
     }
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
@@ -54,6 +57,32 @@ public class MessageService
         {
             _logService.Log(LogLevel.Error, $"Xml parse error: {ex.Message}");
             return false;
+        }
+
+        XmlElement? root = xml.DocumentElement;
+        if (root == null)
+        {
+            _logService.Log(LogLevel.Error, "Root element is missing");
+            return false;
+        }
+
+        if (root.Name == "RtavMessage" && root.NamespaceURI.Contains("rtav.fidelio"))
+        {
+
+            var messageObject = _quotaService.DeserializeXmlToMessage(xml);
+            if (messageObject == null)
+            {
+                _logService.Log(LogLevel.Error, "Error processing message.");
+                return false;
+            }
+
+            var roomQuotas = await _quotaService.MapToRoomQuotas(messageObject);
+            if (roomQuotas != null && roomQuotas.Any())
+            {
+                await _quotaService.UpdateRoomQuotas(roomQuotas);
+            }
+
+            return true;
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))
