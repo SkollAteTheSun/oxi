@@ -66,23 +66,14 @@ public class MessageService
             return false;
         }
 
-        if (root.Name == "RtavMessage" && root.NamespaceURI.Contains("rtav.fidelio"))
+        if (root.Name == nameof(Reservation)) 
         {
+            await _quotaService.UpdateRoomQuotasByReservation(xml);
+        }
 
-            var messageObject = _quotaService.DeserializeXmlToMessage(xml);
-            if (messageObject == null)
-            {
-                _logService.Log(LogLevel.Error, "Error processing message.");
-                return false;
-            }
-
-            var roomQuotas = await _quotaService.MapToRoomQuotas(messageObject);
-            if (roomQuotas != null && roomQuotas.Any())
-            {
-                await _quotaService.UpdateRoomQuotas(roomQuotas);
-            }
-
-            return true;
+        if (root.Name == nameof(RtavMessage) && root.NamespaceURI.Contains("rtav.fidelio"))
+        {
+            return await _quotaService.UpdateRoomQuotasByRtavMessage(xml);
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))

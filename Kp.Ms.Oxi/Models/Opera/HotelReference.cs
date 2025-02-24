@@ -5,6 +5,6 @@ namespace Kp.Ms.Oxi.Models.Opera;
 [XmlType(TypeName = "HotelReference")]
 public class HotelReference
 {
-    [XmlAttribute("hotelCode")]
+    [XmlElement("hotelCode")]
     public required string HotelCode { get; set; }
 }
