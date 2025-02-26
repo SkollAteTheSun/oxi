@@ -109,8 +109,7 @@ public class BookingService
 
                 if (existingQuota != null)
                 {
-                    existingQuota.Amount = quota.Amount;
-                    existingQuota.Close = quota.Close;
+                    existingQuota.AmountAsu = quota.AmountAsu;
                 }
                 else
                 {

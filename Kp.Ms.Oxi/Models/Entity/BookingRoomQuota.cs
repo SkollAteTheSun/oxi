@@ -23,6 +23,9 @@ public class BookingRoomQuota
     [Required]
     public long Amount { get; set; }
 
+    public long AmountAsu { get; set; }
+    public long ReservedAsu { get; set; }
+
     public ulong? RateId { get; set; }
     public bool? Close { get; set; } = false;
 }

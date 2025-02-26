@@ -28,6 +28,17 @@ public class BookingContext : DbContext
         modelBuilder.Entity<BookingHotel>().ToTable("hotels");
         modelBuilder.Entity<BookingRoomTypes>().ToTable("room_types");
         modelBuilder.Entity<BookingRoomQuota>().ToTable("room_quotas");
+
+        modelBuilder
+            .Entity<BookingRoomQuota>()
+            .Property(roomQuota => roomQuota.AmountAsu)
+            .HasColumnName("amount_asu")
+            .HasDefaultValue(0);
+        modelBuilder
+            .Entity<BookingRoomQuota>()
+            .Property(roomQuota => roomQuota.ReservedAsu)
+            .HasColumnName("reserved_asu")
+            .HasDefaultValue(0); 
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
