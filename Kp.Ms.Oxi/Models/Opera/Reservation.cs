@@ -2,7 +2,7 @@ using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Models.Opera;
 
-[XmlRoot(Namespace = "reservation.fidelio.4.0")]
+[XmlRoot(Namespace = "reservation.fidelio.5.0")]
 [XmlType(TypeName = "Reservation")]
 public class Reservation
 {

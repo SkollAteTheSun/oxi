@@ -9,7 +9,7 @@ public class RtavMessage
     public int DataMart { get; set; }
 
     [XmlElement("HotelReference")]
-    public HotelReference HotelReference { get; set; }
+    public HotelReferenceAttribute HotelReference { get; set; }
 
     [XmlArray("DailyInventories")]
     [XmlArrayItem("DailyInventory")]

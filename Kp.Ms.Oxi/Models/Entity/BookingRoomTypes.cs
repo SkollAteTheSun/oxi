@@ -19,8 +19,8 @@ public class BookingRoomTypes
 
     public byte Capacity { get; set; }
     public int CountMainSeat { get; set; } = 0;
-    public string Description { get; set; }
-    public string Images { get; set; }
+    public string? Description { get; set; }
+    public string? Images { get; set; }
 
     [ForeignKey("Hotel")]
     public ulong HotelId { get; set; }
@@ -32,7 +32,7 @@ public class BookingRoomTypes
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public byte Order { get; set; } = 99;
-    public string AccommodationTypes { get; set; }
+    public string? AccommodationTypes { get; set; }
     public int? MinNightsRoomType { get; set; } = 1;
     public uint? ResourceId { get; set; }
     public ushort? SquareFrom { get; set; }
@@ -44,13 +44,13 @@ public class BookingRoomTypes
     public bool NotAvailForBaby { get; set; } = false;
 
     [MaxLength(255)]
-    public string HrsCode { get; set; }
+    public string? HrsCode { get; set; }
 
     public byte? ChildrenCapacity { get; set; } = 0;
     public byte? CradleCapacity { get; set; } = 0;
 
     [MaxLength(255)]
-    public string Panorama { get; set; }
+    public string? Panorama { get; set; }
 
     public ICollection<BookingRoomQuota> RoomQuotas { get; set; }
 }
