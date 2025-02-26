@@ -10,11 +10,6 @@ public class QuotaService
     private readonly LogService _logService;
     private readonly BookingService _bookingService;
 
-    private readonly Dictionary<string, string> _bookingInterfaces = new Dictionary<string, string>() {
-        { "OXI-2W", "Marriott" },
-        { "ZOOX", "Courtyard" }
-    };
-
     public QuotaService(LogService logService, BookingService bookingService)
     {
         _logService = logService;
@@ -57,8 +52,7 @@ public class QuotaService
                     HotelId = roomType.HotelId,
                     RoomTypeId = roomType.Id,
                     Date = inventory.Datum,
-                    Amount = roomTypeInventory.Available,
-                    Close = roomTypeInventory.Available <= 0
+                    AmountAsu = roomTypeInventory.Available
                 };
 
                 roomQuotas.Add(roomQuota);
@@ -93,15 +87,6 @@ public class QuotaService
             return;
         }
 
-        var isBookingReservation = reservation?.ResProfiles?.Any(resProfile =>
-            _bookingInterfaces.ContainsKey(resProfile?.Profile?.CreatorCode ?? string.Empty)) ?? false;
-
-        if (isBookingReservation)
-        {
-            _logService.Log(LogLevel.Debug, $"Reservation from booking. Id \"{reservation?.ReservationId}\".");
-            return;
-        }
-
         var roomQuotas = new List<BookingRoomQuota>();
 
         var roomTypeDict = await GetBookingRoomTypes(reservation.HotelReference.HotelCode);
@@ -125,14 +110,34 @@ public class QuotaService
                 roomStay.TimeSpan.StartTime.Date,
                 roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits));
 
+            if (!quotas.Any())
+            {
+                var date = roomStay.TimeSpan.StartTime.Date;
+                var toDate = roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits);
+                while (date < toDate)
+                {
+                    quotas.Add(new BookingRoomQuota()
+                    {
+                        HotelId = roomType.HotelId,
+                        RoomTypeId = roomType.Id,
+                        Date = date,
+                        Amount = 0,
+                        Close = false,
+                        AmountAsu = 0,
+                        ReservedAsu = 0
+                    });
+                    date = date.AddDays(1);
+                }
+            }
+
             if (reservation.MfReservationAction == ReservationAction.ADD.ToString())
             {
-                quotas.ForEach(quota => quota.Amount -= 1);
+                quotas.ForEach(quota => quota.ReservedAsu += 1);
             }
 
             if (reservation.MfReservationAction == ReservationAction.CANCEL.ToString())
             {
-                quotas.ForEach(quota => quota.Amount += 1);
+                quotas.ForEach(quota => quota.ReservedAsu -= 1);
             }
 
             if (quotas != null && quotas.Any())
