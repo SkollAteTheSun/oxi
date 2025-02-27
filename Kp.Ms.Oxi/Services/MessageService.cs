@@ -12,6 +12,8 @@ using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
 using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Kp.Ms.Oxi.Services;
@@ -36,8 +38,6 @@ public class MessageService
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
     {
-        _logService.Log(LogLevel.Information, $"Input message: \n{message}");
-
         JsonSerializerOptions jso = new JsonSerializerOptions
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -55,9 +55,12 @@ public class MessageService
         }
         catch (Exception ex)
         {
+            _logService.Log(LogLevel.Information, $"Input message: \n{message}");
             _logService.Log(LogLevel.Error, $"Xml parse error: {ex.Message}");
             return false;
         }
+
+        _logService.LogOperaMessage(LogLevel.Information, JsonConvert.SerializeXmlNode(xml));
 
         XmlElement? root = xml.DocumentElement;
         if (root == null)
