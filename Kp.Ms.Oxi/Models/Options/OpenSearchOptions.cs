@@ -17,4 +17,7 @@ public class OpenSearchOptions
 
     [Required]
     public required string LogIndex { get; set; }
+
+    [Required]
+    public required string LogIndexOperaMessages { get; set; }
 }
