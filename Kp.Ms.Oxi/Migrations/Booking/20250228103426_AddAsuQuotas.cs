@@ -1,6 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -13,18 +11,18 @@ namespace Kp.Ms.Oxi.Migrations.Booking
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<long>(
-                 name: "amount_asu",
-                 table: "room_quotas",
-                 type: "BIGINT",
-                 nullable: false,
-                 defaultValue: 0);
+                name: "amount_asu",
+                table: "room_quotas",
+                type: "bigint",
+                nullable: false,
+                defaultValue: 0);
 
             migrationBuilder.AddColumn<long>(
-                 name: "reserved_asu",
-                 table: "room_quotas",
-                 type: "BIGINT",
-                 nullable: false,
-                 defaultValue: 0);
+                name: "reserved_asu",
+                table: "room_quotas",
+                type: "bigint",
+                nullable: false,
+                defaultValue: 0);
         }
 
         /// <inheritdoc />
@@ -33,6 +31,7 @@ namespace Kp.Ms.Oxi.Migrations.Booking
             migrationBuilder.DropColumn(
                 name: "amount_asu",
                 table: "room_quotas");
+
             migrationBuilder.DropColumn(
                 name: "reserved_asu",
                 table: "room_quotas");

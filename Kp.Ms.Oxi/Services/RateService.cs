@@ -2,6 +2,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -88,7 +89,7 @@ public class RateService
 //                         """;
 
         // var vectors = context.RoomRatesVectorRows.FromSqlRaw(query).ToList();
-        var vectors = context.RoomRatesVectorAggRows.FromSqlRaw(query).ToList();
+        var vectors = context.Database.SqlQueryRaw<RoomRatesVectorAgg>(query).ToList();
 
         string? rateCode = null;
         List<RateDetail> rateDetails = [];

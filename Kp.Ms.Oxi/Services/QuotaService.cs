@@ -1,7 +1,5 @@
 ﻿using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
-using System.Xml;
-using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -16,9 +14,8 @@ public class QuotaService
         _bookingService = bookingService;
     }
 
-    public async Task<bool> UpdateRoomQuotasByRtavMessage(XmlDocument xml)
+    public async Task<bool> UpdateRoomQuotasByRtavMessage(RtavMessage message)
     {
-        var message = DeserializeXmlToMessage<RtavMessage>(xml);
         if (message == null)
         {
             _logService.Log(LogLevel.Error, "Error processing message.");
@@ -69,17 +66,15 @@ public class QuotaService
         return true;
     }
 
-    public async Task UpdateRoomQuotasByReservation(XmlDocument xml)
+    public async Task UpdateRoomQuotasByReservation(Reservation reservation)
     {
-        if (xml.DocumentElement.GetAttribute("mfReservationAction") != ReservationAction.ADD.ToString() &&
-            xml.DocumentElement.GetAttribute("mfReservationAction") != ReservationAction.CANCEL.ToString())
+        if (reservation.MfReservationAction != ReservationAction.ADD.ToString() &&
+            reservation.MfReservationAction != ReservationAction.CANCEL.ToString())
         {
             return;
         }
 
         _logService.Log(LogLevel.Information, $"Try update quotas by reservation.");
-
-        var reservation = DeserializeXmlToMessage<Reservation>(xml);
 
         if (reservation?.HotelReference?.HotelCode == null || reservation?.RoomStays == null)
         {
@@ -151,39 +146,16 @@ public class QuotaService
         _logService.Log(LogLevel.Information, $"{roomQuotas.Count} quotas by reservation \"{reservation.ReservationId}\" successfully updated.");
     }
 
-    private TModel DeserializeXmlToMessage<TModel>(XmlDocument xmlDocument) where TModel : class
+    private async Task<Dictionary<string, BookingRoomType>> GetBookingRoomTypes(string hotelCode)
     {
-        try
-        {
-            var rootNode = xmlDocument.DocumentElement;
-            if (rootNode == null)
-            {
-                return null;
-            }
-
-            XmlSerializer serializer = new XmlSerializer(typeof(TModel));
-            using var reader = new StringReader(rootNode.OuterXml);
-            using var xmlReader = XmlReader.Create(reader);
-
-            return (TModel?)serializer.Deserialize(xmlReader);
-        }
-        catch (Exception ex)
-        {
-            _logService.Log(LogLevel.Error, $"XML deserialization error: {ex.Message}");
-            return null;
-        }
-    }
-
-    private async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
-    {
-        var hotelId = await _bookingService.GetHotelId(hotelCode);
-        if (hotelId == null)
+        var hotel = await _bookingService.GetHotel(hotelCode);
+        if (hotel == null)
         {
             _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
-            return new Dictionary<string, BookingRoomTypes>();
+            return new Dictionary<string, BookingRoomType>();
         }
 
-        var roomTypes = await _bookingService.GetRoomTypes(hotelId.Value);
+        var roomTypes = await _bookingService.GetRoomTypes(hotel.Id);
 
         return roomTypes?.ToDictionary(key => key.HrsCode, value => value);
     }
