@@ -296,13 +296,13 @@ public class ReservationService
             [
                 new GuestCount
                 {
-                    AgeQualifyingCode = "ADULT",
+                    AgeQualifyingCode = ReservationGuestAgeCode.ADULT.ToString(),
                     MfCount = request.Reservation.Adult
                 },
 
                 new GuestCount
                 {
-                    AgeQualifyingCode = "CHILD",
+                    AgeQualifyingCode = ReservationGuestAgeCode.CHILD.ToString(),
                     MfCount = request.Reservation.Child
                 }
             ],
@@ -424,12 +424,12 @@ public class ReservationService
                     [
                         new GuestCount
                         {
-                            AgeQualifyingCode = "ADULT",
+                            AgeQualifyingCode = ReservationGuestAgeCode.ADULT.ToString(),
                             MfCount = request.Reservation.Adult
                         },
                         new GuestCount
                         {
-                            AgeQualifyingCode = "CHILD",
+                            AgeQualifyingCode = ReservationGuestAgeCode.CHILD.ToString(),
                             MfCount = request.Reservation.Child
                         }
                     ],
