@@ -13,5 +13,5 @@ public class RtavMessage
 
     [XmlArray("DailyInventories")]
     [XmlArrayItem("DailyInventory")]
-    public List<DailyInventory> DailyInventories { get; set; }
+    public List<DailyInventory> DailyInventories { get; set; } = [];
 }

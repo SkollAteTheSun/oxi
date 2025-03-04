@@ -24,7 +24,7 @@ public class QuotaService
 
         var roomQuotas = new List<BookingRoomQuota>();
 
-        if (message.HotelReference == null || message.DailyInventories == null)
+        if (message.HotelReference == null)
         {
             _logService.Log(LogLevel.Warning, "Invalid message: No hotel or quota data.");
             return true;
@@ -34,8 +34,6 @@ public class QuotaService
 
         foreach (var inventory in message.DailyInventories)
         {
-            if (inventory.RoomTypeInventories == null) continue;
-
             foreach (var roomTypeInventory in inventory.RoomTypeInventories)
             {
                 if (!roomTypeDict.TryGetValue(roomTypeInventory.RoomType, out var roomType))
@@ -58,9 +56,9 @@ public class QuotaService
 
         _logService.Log(LogLevel.Information, $"Successfully matched {roomQuotas.Count} quotas for hotel code: {message.HotelReference.HotelCode}."); ;
 
-        if (roomQuotas != null && roomQuotas.Any())
+        if (roomQuotas.Any())
         {
-            await _bookingService.UpdateRoomQuotas(roomQuotas);
+            await _bookingService.UpdateAmountAsuRoomQuotas(roomQuotas);
         }
 
         return true;
@@ -76,7 +74,7 @@ public class QuotaService
 
         _logService.Log(LogLevel.Information, $"Try update quotas by reservation.");
 
-        if (reservation?.HotelReference?.HotelCode == null || reservation?.RoomStays == null)
+        if (reservation?.HotelReference?.HotelCode == null)
         {
             _logService.Log(LogLevel.Warning, "Invalid message: No hotel or room data.");
             return;
@@ -105,11 +103,11 @@ public class QuotaService
                 roomStay.TimeSpan.StartTime.Date,
                 roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits));
 
-            if (!quotas.Any())
+            for (var i = 0; i < roomStay.TimeSpan.NumberOfTimeUnits; i++)
             {
-                var date = roomStay.TimeSpan.StartTime.Date;
-                var toDate = roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits);
-                while (date < toDate)
+                var date = roomStay.TimeSpan.StartTime.Date.AddDays(i);
+
+                if (!quotas.Any(quota => quota.Date.Date == date))
                 {
                     quotas.Add(new BookingRoomQuota()
                     {
@@ -121,23 +119,16 @@ public class QuotaService
                         AmountAsu = 0,
                         ReservedAsu = 0
                     });
-                    date = date.AddDays(1);
                 }
             }
 
-            if (reservation.MfReservationAction == ReservationAction.ADD.ToString())
-            {
-                quotas.ForEach(quota => quota.ReservedAsu += 1);
-            }
+            quotas.ForEach(quota => quota.ReservedAsu = reservation.MfReservationAction == ReservationAction.ADD.ToString()
+                ? quota.ReservedAsu + 1
+                : quota.ReservedAsu - 1);
 
-            if (reservation.MfReservationAction == ReservationAction.CANCEL.ToString())
+            if (quotas.Any())
             {
-                quotas.ForEach(quota => quota.ReservedAsu -= 1);
-            }
-
-            if (quotas != null && quotas.Any())
-            {
-                await _bookingService.UpdateAmountRoomQuotas(quotas);
+                await _bookingService.UpdateRoomQuotas(quotas);
             }
 
             roomQuotas.AddRange(quotas);

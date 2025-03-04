@@ -78,6 +78,31 @@ public class BookingService
         }
     }
 
+    public async Task<List<BookingRoomQuota>> GetRoomQuotas(List<BookingRoomQuota> quotas)
+    {
+        _logService.Log(LogLevel.Information, $"Start getting quotas.");
+
+        try
+        {
+            using var context = _contextFactory.CreateDbContext();
+            var existingQuotas = await context.RoomQuotas
+                .AsNoTracking()
+                .Where(q => quotas.Select(x => x.HotelId).Contains(q.HotelId) &&
+                            quotas.Select(x => x.RoomTypeId).Contains(q.RoomTypeId) &&
+                            quotas.Select(x => x.Date).Contains(q.Date))
+                .ToListAsync();
+
+            _logService.Log(LogLevel.Information, $"{existingQuotas.Count} quotas got.");
+
+            return existingQuotas;
+        }
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"Error getting quotas: {ex.Message}");
+            throw;
+        }
+    }
+
     public async Task<BookingReservationAsu?> GetReservationAsu(ulong hotelId, string externalId)
     {
         _logService.Log(LogLevel.Information, $"Start gettting reservation asu: {hotelId}-{externalId}.");
@@ -120,7 +145,7 @@ public class BookingService
         }
     }
 
-    public async Task UpdateAmountRoomQuotas(List<BookingRoomQuota> quotas)
+    public async Task UpdateRoomQuotas(List<BookingRoomQuota> quotas)
     {
         _logService.Log(LogLevel.Information, $"Start updating quotas: {quotas.Count} records.");
 
@@ -140,18 +165,13 @@ public class BookingService
         }
     }
 
-    public async Task UpdateRoomQuotas(List<BookingRoomQuota> quotas)
+    public async Task UpdateAmountAsuRoomQuotas(List<BookingRoomQuota> quotas)
     {
         _logService.Log(LogLevel.Information, $"Start updating quotas: {quotas.Count} records.");
 
         try
         {
-            using var context = _contextFactory.CreateDbContext();
-            var existingQuotas = await context.RoomQuotas
-                .Where(q => quotas.Select(x => x.HotelId).Contains(q.HotelId) &&
-                            quotas.Select(x => x.RoomTypeId).Contains(q.RoomTypeId) &&
-                            quotas.Select(x => x.Date).Contains(q.Date))
-                .ToListAsync();
+            var existingQuotas = await GetRoomQuotas(quotas);
 
             foreach (var quota in quotas)
             {
@@ -164,11 +184,12 @@ public class BookingService
                 }
                 else
                 {
-                    context.RoomQuotas.Add(quota);
+                    existingQuotas.Add(quota);
                 }
             }
 
-            await context.SaveChangesAsync();
+            await UpdateRoomQuotas(existingQuotas);
+
             _logService.Log(LogLevel.Information, "Quotas updated successfully.");
         }
         catch (Exception ex)
