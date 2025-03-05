@@ -38,7 +38,7 @@ public class QuotaService
             {
                 if (!roomTypeDict.TryGetValue(roomTypeInventory.RoomType, out var roomType))
                 {
-                    _logService.Log(LogLevel.Warning, $"Room type: {roomTypeInventory.RoomType} not found in database for hotelID: {roomType.HotelId}.");
+                    _logService.Log(LogLevel.Warning, $"Room type: {roomTypeInventory.RoomType} not found in database for hotel code: {message.HotelReference.HotelCode}.");
                     continue;
                 }
 
@@ -93,7 +93,7 @@ public class QuotaService
 
             if (!roomTypeDict.TryGetValue(roomStay.roomInventoryCode, out var roomType))
             {
-                _logService.Log(LogLevel.Warning, $"Room type: {roomStay.roomInventoryCode} not found in database for hotelID: {roomType.HotelId}.");
+                _logService.Log(LogLevel.Warning, $"Room type: {roomStay.roomInventoryCode} not found in database for hotel code: {reservation.HotelReference.HotelCode}.");
                 continue;
             }
 
