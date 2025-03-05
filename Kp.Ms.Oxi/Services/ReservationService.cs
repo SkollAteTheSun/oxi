@@ -243,7 +243,7 @@ public class ReservationService
         MakeTransactionId(request);
 
         string reservationActionType = request.Reservation.ExternalId == null ? "NEW" : "CHANGE";
-        string mfReservationAction = request.Reservation.ExternalId == null ? "ADD" : "EDIT";
+        ReservationAction mfReservationAction = request.Reservation.ExternalId == null ? ReservationAction.ADD : ReservationAction.EDIT;
         string reservationStatusType = request.Reservation.Status switch
         {
             ReservationStatusType.New or ReservationStatusType.Paid or ReservationStatusType.Approved => "RESERVED",
@@ -277,7 +277,7 @@ public class ReservationService
         Reservation reservation = new Reservation
         {
             MfShareAction = "NA",
-            MfReservationAction = mfReservationAction,
+            MfReservationAction = mfReservationAction.ToString(),
             HotelReference = new HotelReference
             {
                 HotelCode = request.Interface.HotelCode
@@ -296,13 +296,13 @@ public class ReservationService
             [
                 new GuestCount
                 {
-                    AgeQualifyingCode = "ADULT",
+                    AgeQualifyingCode = ReservationGuestAgeCode.ADULT.ToString(),
                     MfCount = request.Reservation.Adult
                 },
 
                 new GuestCount
                 {
-                    AgeQualifyingCode = "CHILD",
+                    AgeQualifyingCode = ReservationGuestAgeCode.CHILD.ToString(),
                     MfCount = request.Reservation.Child
                 }
             ],
@@ -409,7 +409,7 @@ public class ReservationService
                 new RoomStay
                 {
                     mfShareAction = "NA",
-                    mfReservationAction = mfReservationAction,
+                    mfReservationAction = mfReservationAction.ToString(),
                     reservationActionType = reservationActionType,
                     reservationStatusType = reservationStatusType,
                     roomStayRPH = 0,
@@ -424,12 +424,12 @@ public class ReservationService
                     [
                         new GuestCount
                         {
-                            AgeQualifyingCode = "ADULT",
+                            AgeQualifyingCode = ReservationGuestAgeCode.ADULT.ToString(),
                             MfCount = request.Reservation.Adult
                         },
                         new GuestCount
                         {
-                            AgeQualifyingCode = "CHILD",
+                            AgeQualifyingCode = ReservationGuestAgeCode.CHILD.ToString(),
                             MfCount = request.Reservation.Child
                         }
                     ],

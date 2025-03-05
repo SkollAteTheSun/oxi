@@ -1,3 +1,4 @@
+using Kp.Ms.Oxi.EntityConfiguration;
 using Kp.Ms.Oxi.Models.Entity;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,16 +12,24 @@ public class BookingContext : DbContext
     }
 
     // Sql query collections
-    public DbSet<RoomRatesVector> RoomRatesVectorRows { get; set; }
-    public DbSet<RoomRatesVectorAgg> RoomRatesVectorAggRows { get; set; }
+    public DbSet<BookingHotel> Hotels { get; set; }
+    public DbSet<BookingRoomType> RoomTypes { get; set; }
+    public DbSet<BookingRoomQuota> RoomQuotas { get; set; }
+    public DbSet<BookingReservationAsu> ReservationsAsu { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<RoomRatesVector>()
-            .HasNoKey();
-        
-        modelBuilder.Entity<RoomRatesVectorAgg>()
-            .HasNoKey();
+        modelBuilder
+            .Entity<BookingHotel>()
+            .ToTable("hotels", t => t.ExcludeFromMigrations());
+        modelBuilder
+            .Entity<BookingRoomType>()
+            .ToTable("room_types", t => t.ExcludeFromMigrations());
+        modelBuilder
+            .Entity<BookingRoomQuota>()
+            .ToTable("room_quotas", t => t.ExcludeFromMigrations());
+
+        modelBuilder.ApplyConfiguration(new BookingReservationAsuBuilder());
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

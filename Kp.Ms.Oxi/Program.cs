@@ -116,6 +116,8 @@ builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
 builder.Services.AddTransient<MessageService>();
 builder.Services.AddTransient<TransactionService>();
+builder.Services.AddTransient<QuotaService>();
+builder.Services.AddTransient<BookingService>();
 
 builder.Services.AddOptions<CheckOutProcessingSettings>()
     .Bind(builder.Configuration.GetSection("CheckOutProcessing"));

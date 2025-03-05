@@ -2,7 +2,7 @@ using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Models.Opera;
 
-[XmlRoot(Namespace = "reservation.fidelio.4.0")]
+[XmlRoot(Namespace = "reservation.fidelio.5.0")]
 [XmlType(TypeName = "Reservation")]
 public class Reservation
 {
@@ -49,6 +49,10 @@ public class Reservation
     [XmlArray("RoomStays")]
     [XmlArrayItem("RoomStay")]
     public List<RoomStay> RoomStays { get; set; } = [];
+
+    [XmlArray("RoomRevenues")]
+    [XmlArrayItem("RoomRevenue")]
+    public List<RoomRevenue> RoomRevenues { get; set; } = [];
 
     [XmlArray("Udfs")]
     [XmlArrayItem("Udf", Namespace = "udf.fidelio.2.0")]

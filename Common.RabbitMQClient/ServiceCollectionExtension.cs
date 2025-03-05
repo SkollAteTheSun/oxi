@@ -31,5 +31,5 @@ public static class ServiceCollectionExtension
                 connection,
                 settings,
                 provider.GetService<IRabbitMQApiClient>()));
-    } 
+    }
 }
