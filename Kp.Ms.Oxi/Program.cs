@@ -124,6 +124,8 @@ builder.Services.AddOptions<CheckOutProcessingSettings>()
 builder.Services.AddSingleton<PmsService>();
 builder.Services.ActivateSingleton<PmsService>();
 
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 if (!app.Environment.IsProduction())
@@ -142,6 +144,9 @@ if (!app.Environment.IsProduction())
         options.RoutePrefix = "api/swagger";
     });
 }
+
+app.MapHealthChecks("/healthz")
+    .RequireHost(builder.Configuration.GetSection("MonitoringHosts").Get<string[]>());
 
 app.UseCors("cors");
 
