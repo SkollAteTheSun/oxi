@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Serialization;
-using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
@@ -12,7 +11,6 @@ using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
 using Kp.Ms.Oxi.Models.Response;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using JsonSerializer = System.Text.Json.JsonSerializer;
@@ -222,33 +220,46 @@ public class MessageService
 
     private async Task UpsertReservationAsu(Reservation reservation)
     {
-        var getGuestCount = new Func<ReservationGuestAgeCode, int>(
-            (guest) => reservation.GuestCounts.FirstOrDefault(guestCount => guestCount.AgeQualifyingCode == guest.ToString())?.MfCount ?? 0);
-
-        var hotel = await _bookingService.GetHotel(reservation.HotelReference.HotelCode);
-        var roomType = await _bookingService.GetRoomType(hotel.Id, reservation.RoomStays.FirstOrDefault()?.roomInventoryCode);
-
-        var existsReservationAsu = await _bookingService.GetReservationAsu(hotel.Id, reservation.ReservationId);
-
-        var reservationAsu = new BookingReservationAsu()
+        try
         {
-            Id = existsReservationAsu?.Id ?? 0,
-            ExternalId = reservation.ReservationId,
-            HotelId = hotel.Id,
-            RoomTypeId = roomType.Id,
-            Total = (ulong)reservation.RoomRevenues.Sum(roomRevenue => roomRevenue.NetRoomRate.ValueNum),
-            RoomQuantity = Convert.ToByte(reservation.RoomStays.Count),
-            DateIn = DateOnly.FromDateTime(reservation.StayDateRange.StartTime),
-            DateOut = DateOnly.FromDateTime(reservation.StayDateRange.StartTime.AddDays(reservation.StayDateRange.NumberOfTimeUnits)),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = existsReservationAsu != null ? DateTime.UtcNow : null,
-            Adults = getGuestCount.Invoke(ReservationGuestAgeCode.ADULT),
-            Children = getGuestCount.Invoke(ReservationGuestAgeCode.CHILD),
-            Infant = getGuestCount.Invoke(ReservationGuestAgeCode.INFANT),
-            Babies = getGuestCount.Invoke(ReservationGuestAgeCode.BABY)
-        };
+            if (reservation == null)
+            {
+                _logService.Log(LogLevel.Error, "Error processing upsert reservation asu.");
+                return;
+            }
 
-        await _bookingService.UpsertReservationAsu(reservationAsu);
+            var getGuestCount = new Func<ReservationGuestAgeCode, int>(
+                (guest) => reservation.GuestCounts.FirstOrDefault(guestCount => guestCount.AgeQualifyingCode == guest.ToString())?.MfCount ?? 0);
+
+            var hotel = await _bookingService.GetHotel(reservation.HotelReference.HotelCode);
+            var roomType = await _bookingService.GetRoomType(hotel.Id, reservation.RoomStays.FirstOrDefault()?.roomInventoryCode);
+
+            var existsReservationAsu = await _bookingService.GetReservationAsu(hotel.Id, reservation.ReservationId);
+
+            var reservationAsu = new BookingReservationAsu()
+            {
+                Id = existsReservationAsu?.Id ?? 0,
+                ExternalId = reservation.ReservationId,
+                HotelId = hotel.Id,
+                RoomTypeId = roomType.Id,
+                Total = (ulong)reservation.RoomRevenues.Sum(roomRevenue => roomRevenue.NetRoomRate.ValueNum),
+                RoomQuantity = Convert.ToByte(reservation.RoomStays.Count),
+                DateIn = DateOnly.FromDateTime(reservation.StayDateRange.StartTime),
+                DateOut = DateOnly.FromDateTime(reservation.StayDateRange.StartTime.AddDays(reservation.StayDateRange.NumberOfTimeUnits)),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = existsReservationAsu != null ? DateTime.UtcNow : null,
+                Adults = getGuestCount.Invoke(ReservationGuestAgeCode.ADULT),
+                Children = getGuestCount.Invoke(ReservationGuestAgeCode.CHILD),
+                Infant = getGuestCount.Invoke(ReservationGuestAgeCode.INFANT),
+                Babies = getGuestCount.Invoke(ReservationGuestAgeCode.BABY)
+            };
+
+            await _bookingService.UpsertReservationAsu(reservationAsu);
+        }
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"Failed to upsert reservation asu: {ex.Message}");
+        }
     }
 
     public async Task<StatusDto> FidelioResult(string message)
