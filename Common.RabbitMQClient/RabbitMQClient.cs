@@ -53,14 +53,18 @@ public class RabbitMQClient : IRabbitMQClient, IDisposable
         }
     }
 
-    public bool SendMessage<T>(string exchangeName, string queueName, string routingKey, T message)
+    public bool SendMessage<T>(string exchangeName, string queueName, string routingKey, T message, bool persistent = false)
     {
         try
         {
             CreateQueue(exchangeName, queueName, routingKey);
             var messageJsonString = JsonConvert.SerializeObject(message);
             byte[] messageBodyBytes = Encoding.UTF8.GetBytes(messageJsonString);
-            _channel.BasicPublish(exchangeName, routingKey, null, messageBodyBytes);
+
+            IBasicProperties properties = _channel.CreateBasicProperties();
+            properties.Persistent = persistent;
+
+            _channel.BasicPublish(exchangeName, routingKey, properties, messageBodyBytes);
 
             _logger.LogDebug($"A new task has been added to the queue \"{queueName}\": {messageJsonString}");
             return true;
