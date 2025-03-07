@@ -115,7 +115,8 @@ public class PmsService
                     $"{EXCHANGE_PREFIX}-{checkOut.HotelCode}",
                     $"{QUEUE_PREFIX}-{checkOut.HotelCode}",
                     $"{ROUTING_PREFIX}-{checkOut.HotelCode}",
-                    checkOut);
+                    checkOut,
+                    true);
 
                 await LogCheckOut(checkOut, CheckOutProcessingStatus.Queued);
 
