@@ -77,4 +77,31 @@ public class TransactionService
 
         return acknowledgedTransactions;
     }
+
+    public async Task<Transaction?> TakeFirstAsync(TransactionOneRequest request)
+    {
+        DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
+        Transaction? transaction = await _context.Transactions
+            .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
+            .Where(t => t.Received == false)
+            .Where(t => t.HotelCode == request.PropertyName)
+            .OrderBy(t => t.Id)
+            .FirstOrDefaultAsync();
+
+        if (transaction != null)
+        {
+            transaction.Sended = true;
+            transaction.SendedAt = DateTime.UtcNow;
+            transaction.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logService.Log(LogLevel.Information, $"Transaction get: \n{JsonSerializer.Serialize(transaction, _jso)}");
+        }
+        else
+        {
+            _logService.Log(LogLevel.Information, $"Transaction not found");
+        }
+
+        return transaction;
+    }
 }
