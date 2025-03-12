@@ -59,9 +59,15 @@ public class TransactionService
             .Where(t => transactionIds.Contains(t.Id))
             .ToListAsync();
 
-        transactions.ForEach(transaction => transaction.Delivered = true);
+        transactions.ForEach(transaction =>
+        {
+            transaction.Delivered = true;
+            transaction.DeliveredAt = DateTime.UtcNow;
+            transaction.UpdatedAt = DateTime.UtcNow;
+            _context.SaveChanges();
 
-        await _context.SaveChangesAsync();
+            _logService.Log(LogLevel.Information, $"Acknowledged transaction: \n{JsonSerializer.Serialize(transaction, _jso)}");
+        });
 
         var acknowledgedTransactions = transactions
             .Select(transaction => transaction.Id)

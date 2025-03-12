@@ -7,8 +7,9 @@ public class Transaction
     public DateTime UpdatedAt { get; set; }
     public bool Sended { get; set; }
     public DateTime? SendedAt { get; set; }
-    public bool Received { get; set; }
     public bool Delivered { get; set; }
+    public DateTime? DeliveredAt { get; set; }
+    public bool Received { get; set; }
     public DateTime? ReceivedAt { get; set; }
     public required string HotelCode { get; set; }
     public required string TransactionId { get; set; }
