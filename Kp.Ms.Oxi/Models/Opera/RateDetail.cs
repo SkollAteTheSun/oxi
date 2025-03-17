@@ -66,4 +66,7 @@ public class RateDetail
     
     [XmlElement("freeChildren")]
     public int FreeChildren { get; set; }
+
+    [XmlElement("bar")]
+    public int Bar { get; set; }
 }

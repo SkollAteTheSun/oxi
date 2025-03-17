@@ -9,16 +9,18 @@ public class QuotaService
 {
     private readonly LogService _logService;
     private readonly BookingService _bookingService;
+    private readonly XmlDeserializer _xmlDeserializer;
 
-    public QuotaService(LogService logService, BookingService bookingService)
+    public QuotaService(LogService logService, BookingService bookingService, XmlDeserializer xmlDeserializer)
     {
         _logService = logService;
         _bookingService = bookingService;
+        _xmlDeserializer = xmlDeserializer;
     }
 
     public async Task<bool> UpdateRoomQuotasByRtavMessage(XmlDocument xml)
     {
-        var message = DeserializeXmlToMessage<RtavMessage>(xml);
+        var message =  _xmlDeserializer.DeserializeXmlToMessage<RtavMessage>(xml);
         if (message == null)
         {
             _logService.Log(LogLevel.Error, "Error processing message.");
@@ -79,7 +81,7 @@ public class QuotaService
 
         _logService.Log(LogLevel.Information, $"Try update quotas by reservation.");
 
-        var reservation = DeserializeXmlToMessage<Reservation>(xml);
+        var reservation = _xmlDeserializer.DeserializeXmlToMessage<Reservation>(xml);
 
         if (reservation?.HotelReference?.HotelCode == null || reservation?.RoomStays == null)
         {
@@ -150,31 +152,8 @@ public class QuotaService
 
         _logService.Log(LogLevel.Information, $"{roomQuotas.Count} quotas by reservation \"{reservation.ReservationId}\" successfully updated.");
     }
-
-    private TModel DeserializeXmlToMessage<TModel>(XmlDocument xmlDocument) where TModel : class
-    {
-        try
-        {
-            var rootNode = xmlDocument.DocumentElement;
-            if (rootNode == null)
-            {
-                return null;
-            }
-
-            XmlSerializer serializer = new XmlSerializer(typeof(TModel));
-            using var reader = new StringReader(rootNode.OuterXml);
-            using var xmlReader = XmlReader.Create(reader);
-
-            return (TModel?)serializer.Deserialize(xmlReader);
-        }
-        catch (Exception ex)
-        {
-            _logService.Log(LogLevel.Error, $"XML deserialization error: {ex.Message}");
-            return null;
-        }
-    }
-
-    private async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
+    
+    public async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
     {
         var hotelId = await _bookingService.GetHotelId(hotelCode);
         if (hotelId == null)

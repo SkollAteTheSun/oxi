@@ -25,15 +25,17 @@ public class MessageService
     private readonly LogService _logService;
     private readonly ReservationService _reservationService;
     private readonly QuotaService _quotaService;
+    private readonly RateService _rateService;
 
     public MessageService(IConfiguration configuration, DefaultContext context, LogService logService,
-        ReservationService reservationService, QuotaService quotaService)
+        ReservationService reservationService, QuotaService quotaService, RateService rateService)
     {
         _configuration = configuration;
         _context = context;
         _logService = logService;
         _reservationService = reservationService;
         _quotaService = quotaService;
+        _rateService = rateService;
     }
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
@@ -77,6 +79,11 @@ public class MessageService
         if (root.Name == nameof(RtavMessage) && root.NamespaceURI.Contains("rtav.fidelio"))
         {
             return await _quotaService.UpdateRoomQuotasByRtavMessage(xml);
+        }
+
+        if (root.Name == nameof(RateHeader) && root.NamespaceURI.Contains("rate.fidelio"))
+        {
+           return await _rateService.UpdateRatesByRateHeader(xml);
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))
