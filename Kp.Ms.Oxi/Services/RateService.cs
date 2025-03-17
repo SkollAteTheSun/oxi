@@ -647,9 +647,6 @@ public class RateService
         return rates;
     }
 
-
-    //---------------------------------------------------------------------------------------------------
-
     private async Task ProcessChunksAsync(List<BookingRoomRates> rates, int chunkSize, long hotelId)
     {
         var semaphore = new SemaphoreSlim(10);
