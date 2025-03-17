@@ -31,17 +31,15 @@ namespace Kp.Ms.Oxi.Migrations.Booking
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
 
-                    b.Property<bool>("Active")
+                    b.Property<bool?>("Active")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("active");
 
                     b.Property<string>("AlertBox")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("alert_box");
 
                     b.Property<string>("Conveniences")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("conveniences");
 
@@ -50,7 +48,6 @@ namespace Kp.Ms.Oxi.Migrations.Booking
                         .HasColumnName("created_at");
 
                     b.Property<string>("Data")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("data");
 
@@ -59,41 +56,32 @@ namespace Kp.Ms.Oxi.Migrations.Booking
                         .HasColumnName("deleted_at");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("description");
 
                     b.Property<string>("DestinationName")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("destination_name");
 
                     b.Property<string>("Facilities")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("facilities");
 
                     b.Property<string>("HrsCode")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
+                        .HasColumnType("longtext")
                         .HasColumnName("hrs_code");
 
                     b.Property<string>("Images")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("images");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
+                        .HasColumnType("longtext")
                         .HasColumnName("name");
 
                     b.Property<string>("ShortDescription")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
+                        .HasColumnType("longtext")
                         .HasColumnName("short_description");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -101,14 +89,12 @@ namespace Kp.Ms.Oxi.Migrations.Booking
                         .HasColumnName("updated_at");
 
                     b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
+                        .HasColumnType("longtext")
                         .HasColumnName("url");
 
-                    b.Property<bool?>("ValidateUKId")
+                    b.Property<bool?>("ValidateUkid")
                         .HasColumnType("tinyint(1)")
-                        .HasColumnName("validate_uk_id");
+                        .HasColumnName("validateUKId");
 
                     b.HasKey("Id")
                         .HasName("pk_hotels");
@@ -117,6 +103,277 @@ namespace Kp.Ms.Oxi.Migrations.Booking
                         {
                             t.ExcludeFromMigrations();
                         });
+                });
+
+            modelBuilder.Entity("Kp.Ms.Oxi.Models.Entity.BookingReservationAsu", b =>
+                {
+                    b.Property<ulong>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
+
+                    b.Property<sbyte?>("Adults")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(4)")
+                        .HasColumnName("adults")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<sbyte?>("Babies")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(4)")
+                        .HasColumnName("babies")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<int?>("ChangedBy")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("changed_by");
+
+                    b.Property<DateTime?>("CheckOutDate")
+                        .HasColumnType("datetime")
+                        .HasColumnName("check_out_date");
+
+                    b.Property<sbyte?>("Children")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(4)")
+                        .HasColumnName("children")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<string>("CombinedRates")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("combined_rates");
+
+                    b.Property<string>("CommentManager")
+                        .HasColumnType("text")
+                        .HasColumnName("comment_manager");
+
+                    b.Property<sbyte?>("Craddle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(4)")
+                        .HasColumnName("craddle")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("json")
+                        .HasColumnName("data");
+
+                    b.Property<DateTime?>("DateCancelled")
+                        .HasColumnType("datetime")
+                        .HasColumnName("date_cancelled");
+
+                    b.Property<DateTime?>("DateGuaranteed")
+                        .HasColumnType("datetime")
+                        .HasColumnName("date_guaranteed");
+
+                    b.Property<DateOnly?>("DateIn")
+                        .HasColumnType("date")
+                        .HasColumnName("date_in");
+
+                    b.Property<DateOnly?>("DateOut")
+                        .HasColumnType("date")
+                        .HasColumnName("date_out");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool?>("DontSendPms")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("dont_send_pms")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<string>("ExternalId")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("external_id")
+                        .HasDefaultValueSql("''");
+
+                    b.Property<sbyte?>("ExtraBed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(4)")
+                        .HasColumnName("extra_bed")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<bool>("Guaranteed")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("guaranteed");
+
+                    b.Property<ulong?>("GuestId")
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("guest_id");
+
+                    b.Property<bool>("HasRateOwnQuotas")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("has_rate_own_quotas");
+
+                    b.Property<ulong?>("HotelId")
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<int?>("Infant")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int(11)")
+                        .HasColumnName("infant")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<bool>("IsChangeProcessed")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_change_processed");
+
+                    b.Property<bool>("IsChanged")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_changed");
+
+                    b.Property<bool>("IsCheckOut")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_check_out");
+
+                    b.Property<DateOnly?>("MindboxPointsDate")
+                        .HasColumnType("date")
+                        .HasColumnName("mindbox_points_date");
+
+                    b.Property<bool?>("NeedLink")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("need_link")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<string>("Number")
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("number");
+
+                    b.Property<string>("OrderNumber")
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)")
+                        .HasColumnName("order_number");
+
+                    b.Property<string>("OrderSource")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("enum('oob','mobile','other','site_mantera','oob_mantera','mobile_mantera')")
+                        .HasColumnName("order_source")
+                        .HasDefaultValueSql("'other'");
+
+                    b.Property<ulong?>("PaymentMethodId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("payment_method_id")
+                        .HasDefaultValueSql("'1'");
+
+                    b.Property<ulong?>("PointsUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("points_used")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<int?>("PriceChanging")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int(11)")
+                        .HasColumnName("price_changing")
+                        .HasDefaultValueSql("'0'");
+
+                    b.Property<string>("Promo")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("promo");
+
+                    b.Property<ulong?>("PromoId")
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("promo_id");
+
+                    b.Property<ulong?>("RateId")
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("rate_id");
+
+                    b.Property<byte?>("RoomQuantity")
+                        .HasColumnType("tinyint(3) unsigned")
+                        .HasColumnName("room_quantity");
+
+                    b.Property<string>("RoomRates")
+                        .HasColumnType("text")
+                        .HasColumnName("room_rates");
+
+                    b.Property<ulong?>("RoomTypeId")
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("room_type_id");
+
+                    b.Property<int?>("SetPoints")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("set_points");
+
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("enum('new','approved','paid','cancelled','closed','refund')")
+                        .HasColumnName("status")
+                        .HasDefaultValueSql("'new'");
+
+                    b.Property<string>("StatusLoyalty")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("status_loyalty");
+
+                    b.Property<ulong?>("Total")
+                        .HasColumnType("bigint(20) unsigned")
+                        .HasColumnName("total");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PRIMARY");
+
+                    b.HasIndex(new[] { "RoomTypeId", "DateIn", "DateOut", "Status" }, "reservation_count_index")
+                        .HasDatabaseName("ix_reservations_asu_room_type_id_date_in_date_out_status");
+
+                    b.HasIndex(new[] { "RoomTypeId", "DateIn", "DateOut", "Status", "RateId" }, "reservation_count_index_new")
+                        .HasDatabaseName("ix_reservations_asu_room_type_id_date_in_date_out_status_rate_id");
+
+                    b.HasIndex(new[] { "DateIn" }, "reservations_asu_date_in_index")
+                        .HasDatabaseName("ix_reservations_asu_date_in");
+
+                    b.HasIndex(new[] { "DateOut" }, "reservations_asu_date_out_index")
+                        .HasDatabaseName("ix_reservations_asu_date_out");
+
+                    b.HasIndex(new[] { "GuestId" }, "reservations_asu_guest_id_foreign")
+                        .HasDatabaseName("ix_reservations_asu_guest_id");
+
+                    b.HasIndex(new[] { "HotelId", "ExternalId" }, "reservations_asu_hotel_id_external_id_index")
+                        .IsUnique()
+                        .HasDatabaseName("ix_reservations_asu_hotel_id_external_id");
+
+                    b.HasIndex(new[] { "HotelId" }, "reservations_asu_hotel_id_foreign")
+                        .HasDatabaseName("ix_reservations_asu_hotel_id");
+
+                    b.HasIndex(new[] { "Number" }, "reservations_asu_number_index")
+                        .HasDatabaseName("ix_reservations_asu_number");
+
+                    b.HasIndex(new[] { "OrderSource" }, "reservations_asu_order_source_index")
+                        .HasDatabaseName("ix_reservations_asu_order_source");
+
+                    b.HasIndex(new[] { "PaymentMethodId" }, "reservations_asu_payment_method_id_foreign")
+                        .HasDatabaseName("ix_reservations_asu_payment_method_id");
+
+                    b.HasIndex(new[] { "RateId" }, "reservations_asu_rate_id_foreign")
+                        .HasDatabaseName("ix_reservations_asu_rate_id");
+
+                    b.HasIndex(new[] { "RoomTypeId" }, "reservations_asu_room_type_id_foreign")
+                        .HasDatabaseName("ix_reservations_asu_room_type_id");
+
+                    b.HasIndex(new[] { "Status" }, "reservations_asu_status_index")
+                        .HasDatabaseName("ix_reservations_asu_status");
+
+                    b.ToTable("reservations_asu", (string)null);
+
+                    MySqlEntityTypeBuilderExtensions.HasCharSet(b, "utf8mb4");
+                    MySqlEntityTypeBuilderExtensions.UseCollation(b, "utf8mb4_unicode_ci");
                 });
 
             modelBuilder.Entity("Kp.Ms.Oxi.Models.Entity.BookingRates", b =>
@@ -396,9 +653,7 @@ namespace Kp.Ms.Oxi.Migrations.Booking
                         .HasColumnName("amount");
 
                     b.Property<long>("AmountAsu")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasDefaultValue(0L)
                         .HasColumnName("amount_asu");
 
                     b.Property<bool?>("Close")
@@ -418,11 +673,140 @@ namespace Kp.Ms.Oxi.Migrations.Booking
                         .HasColumnName("rate_id");
 
                     b.Property<long>("ReservedAsu")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasDefaultValue(0L)
                         .HasColumnName("reserved_asu");
 
+                    b.Property<ulong>("RoomTypeId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("room_type_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_room_quotas");
+
+                    b.ToTable("room_quotas", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Kp.Ms.Oxi.Models.Entity.BookingRoomType", b =>
+                {
+                    b.Property<ulong>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
+
+                    b.Property<string>("AccommodationTypes")
+                        .HasColumnType("longtext")
+                        .HasColumnName("accommodation_types");
+
+                    b.Property<bool?>("Active")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("active");
+
+                    b.Property<byte>("Capacity")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("capacity");
+
+                    b.Property<sbyte?>("ChildrenCapacity")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("children_capacity");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("code");
+
+                    b.Property<int>("CountMainSeat")
+                        .HasColumnType("int")
+                        .HasColumnName("count_main_seat");
+
+                    b.Property<sbyte?>("CradleCapacity")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("cradle_capacity");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("longtext")
+                        .HasColumnName("data");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext")
+                        .HasColumnName("description");
+
+                    b.Property<sbyte?>("ExtrabedCapacity")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("extrabed_capacity");
+
+                    b.Property<ulong>("HotelId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<string>("HrsCode")
+                        .HasColumnType("longtext")
+                        .HasColumnName("hrs_code");
+
+                    b.Property<string>("Images")
+                        .HasColumnType("longtext")
+                        .HasColumnName("images");
+
+                    b.Property<int?>("MinNightsRoomType")
+                        .HasColumnType("int")
+                        .HasColumnName("min_nights_room_type");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("NotAvailForBaby")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("not_avail_for_baby");
+
+                    b.Property<bool>("NotAvailForChildren")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("not_avail_for_children");
+
+                    b.Property<byte>("Order")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("order");
+
+                    b.Property<string>("Panorama")
+                        .HasColumnType("longtext")
+                        .HasColumnName("panorama");
+
+                    b.Property<uint?>("ResourceId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("resource_id");
+
+                    b.Property<ushort?>("SquareFrom")
+                        .HasColumnType("smallint unsigned")
+                        .HasColumnName("square_from");
+
+                    b.Property<ushort?>("SquareTo")
+                        .HasColumnType("smallint unsigned")
+                        .HasColumnName("square_to");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_room_types");
+
+                    b.ToTable("room_types", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
                     b.Property<ulong>("RoomTypeId")
                         .HasColumnType("bigint unsigned")
                         .HasColumnName("room_type_id");

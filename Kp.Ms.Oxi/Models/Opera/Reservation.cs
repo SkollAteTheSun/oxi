@@ -50,6 +50,10 @@ public class Reservation
     [XmlArrayItem("RoomStay")]
     public List<RoomStay> RoomStays { get; set; } = [];
 
+    [XmlArray("RoomRevenues")]
+    [XmlArrayItem("RoomRevenue")]
+    public List<RoomRevenue> RoomRevenues { get; set; } = [];
+
     [XmlArray("Udfs")]
     [XmlArrayItem("Udf", Namespace = "udf.fidelio.2.0")]
     public List<Udf> Udfs { get; set; } = [];

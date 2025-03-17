@@ -99,7 +99,7 @@ public class RateService
 //                         """;
 
         // var vectors = context.RoomRatesVectorRows.FromSqlRaw(query).ToList();
-        var vectors = context.RoomRatesVectorAggRows.FromSqlRaw(query).ToList();
+        var vectors = context.Database.SqlQueryRaw<RoomRatesVectorAgg>(query).ToList();
 
         string? rateCode = null;
         List<RateDetail> rateDetails = [];

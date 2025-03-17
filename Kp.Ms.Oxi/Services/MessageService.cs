@@ -26,9 +26,16 @@ public class MessageService
     private readonly ReservationService _reservationService;
     private readonly QuotaService _quotaService;
     private readonly RateService _rateService;
+    private readonly BookingService _bookingService;
 
-    public MessageService(IConfiguration configuration, DefaultContext context, LogService logService,
-        ReservationService reservationService, QuotaService quotaService, RateService rateService)
+    public MessageService(
+        IConfiguration configuration,
+        DefaultContext context,
+        LogService logService,
+        ReservationService reservationService,
+        QuotaService quotaService,
+        BookingService bookingService,
+        RateService rateService)
     {
         _configuration = configuration;
         _context = context;
@@ -36,6 +43,7 @@ public class MessageService
         _reservationService = reservationService;
         _quotaService = quotaService;
         _rateService = rateService;
+        _bookingService = bookingService;
     }
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
@@ -71,14 +79,19 @@ public class MessageService
             return false;
         }
 
-        if (root.Name == nameof(Reservation)) 
+        if (root.Name == nameof(Reservation))
         {
-            await _quotaService.UpdateRoomQuotasByReservation(xml);
+            var reservation = DeserializeXmlToObject<Reservation>(xml);
+
+            await UpsertReservationAsu(reservation);
+
+            await _quotaService.UpdateRoomQuotasByReservation(reservation);
         }
 
         if (root.Name == nameof(RtavMessage) && root.NamespaceURI.Contains("rtav.fidelio"))
         {
-            return await _quotaService.UpdateRoomQuotasByRtavMessage(xml);
+            var rtavMessage = DeserializeXmlToObject<RtavMessage>(xml);
+            return await _quotaService.UpdateRoomQuotasByRtavMessage(rtavMessage);
         }
 
         if (root.Name == nameof(RateHeader) && root.NamespaceURI.Contains("rate.fidelio"))
@@ -211,6 +224,59 @@ public class MessageService
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    private async Task UpsertReservationAsu(Reservation reservation)
+    {
+        try
+        {
+            if (reservation == null)
+            {
+                _logService.Log(LogLevel.Error, "Error processing upsert reservation asu.");
+                return;
+            }
+
+            var getGuestCount = new Func<ReservationGuestAgeCode, int>(
+                (guest) => reservation.GuestCounts?.FirstOrDefault(guestCount => guestCount.AgeQualifyingCode == guest.ToString())?.MfCount ?? 0);
+
+            var hotel = await _bookingService.GetHotel(reservation.HotelReference?.HotelCode);
+            var roomType = await _bookingService.GetRoomType(hotel.Id, reservation.RoomStays?.FirstOrDefault()?.roomInventoryCode);
+
+            var existsReservationAsu = await _bookingService.GetReservationAsu(hotel.Id, reservation.ReservationId);
+
+            var reservationAsu = new BookingReservationAsu()
+            {
+                Id = existsReservationAsu?.Id ?? 0,
+                ExternalId = reservation.ReservationId,
+                HotelId = hotel?.Id,
+                RoomTypeId = roomType?.Id,
+                Total = (ulong)reservation.RoomRevenues?.Sum(roomRevenue => roomRevenue?.NetRoomRate?.ValueNum),
+                RoomQuantity = reservation.RoomStays?.Count,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = existsReservationAsu != null ? DateTime.UtcNow : null,
+                Adults = getGuestCount.Invoke(ReservationGuestAgeCode.ADULT),
+                Children = getGuestCount.Invoke(ReservationGuestAgeCode.CHILD),
+                Infant = getGuestCount.Invoke(ReservationGuestAgeCode.INFANT),
+                Babies = getGuestCount.Invoke(ReservationGuestAgeCode.BABY)
+            };
+
+            if (reservation.StayDateRange?.StartTime != null)
+            {
+                reservationAsu.DateIn = DateOnly.FromDateTime(reservation.StayDateRange.StartTime);
+                reservationAsu.DateOut = DateOnly.FromDateTime(reservation.StayDateRange.StartTime.AddDays(reservation.StayDateRange?.NumberOfTimeUnits ?? 0));
+            }
+            else
+            {
+                reservationAsu.DateIn = null;
+                reservationAsu.DateOut = null;
+            }
+
+                await _bookingService.UpsertReservationAsu(reservationAsu);
+        }
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"Failed to upsert reservation asu: {ex.Message}");
+        }
     }
 
     public async Task<StatusDto> FidelioResult(string message)
@@ -391,5 +457,28 @@ public class MessageService
         await _context.SaveChangesAsync();
 
         return new StatusDto { Status = StatusType.Success.ToString().ToLower() };
+    }
+
+    private TModel DeserializeXmlToObject<TModel>(XmlDocument xmlDocument) where TModel : class
+    {
+        try
+        {
+            var rootNode = xmlDocument.DocumentElement;
+            if (rootNode == null)
+            {
+                return null;
+            }
+
+            XmlSerializer serializer = new XmlSerializer(typeof(TModel));
+            using var reader = new StringReader(rootNode.OuterXml);
+            using var xmlReader = XmlReader.Create(reader);
+
+            return (TModel?)serializer.Deserialize(xmlReader);
+        }
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"XML deserialization error: {ex.Message}");
+            return null;
+        }
     }
 }

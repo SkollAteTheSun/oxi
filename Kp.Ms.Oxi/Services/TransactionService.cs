@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Kp.Ms.Oxi.Context;
@@ -32,7 +33,7 @@ public class TransactionService
         DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
         List<Transaction> transactions = await _context.Transactions
             .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
-            .Where(t => t.Received == false)
+            .Where(t => t.Delivered == false)
             .Where(t => t.HotelCode == request.HotelCode && t.InterfaceName == request.InterfaceName)
             .OrderBy(t => t.Id)
             .Take(batchSize)
@@ -47,7 +48,60 @@ public class TransactionService
 
             _logService.Log(LogLevel.Information, $"Transaction get: \n{JsonSerializer.Serialize(transaction, _jso)}");
         });
-
         return transactions;
+    }
+
+    public async Task<List<long>> AcknowledgeAsync(List<long> transactionIds)
+    {
+        _logService.Log(LogLevel.Information, $"Transactions for acknowledge [{transactionIds.Count()}]: \n{JsonSerializer.Serialize(transactionIds, _jso)}");
+
+        var transactions = await _context.Transactions
+            .Where(t => transactionIds.Contains(t.Id))
+            .ToListAsync();
+
+        transactions.ForEach(transaction =>
+        {
+            transaction.Delivered = true;
+            transaction.DeliveredAt = DateTime.UtcNow;
+            transaction.UpdatedAt = DateTime.UtcNow;
+            _context.SaveChanges();
+
+            _logService.Log(LogLevel.Information, $"Acknowledged transaction: \n{JsonSerializer.Serialize(transaction, _jso)}");
+        });
+
+        var acknowledgedTransactions = transactions
+            .Select(transaction => transaction.Id)
+            .ToList();
+
+        _logService.Log(LogLevel.Information, $"Acknowledged transactions [{acknowledgedTransactions.Count()}]: \n{JsonSerializer.Serialize(acknowledgedTransactions, _jso)}");
+
+        return acknowledgedTransactions;
+    }
+
+    public async Task<Transaction?> TakeFirstAsync(TransactionOneRequest request)
+    {
+        DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
+        Transaction? transaction = await _context.Transactions
+            .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
+            .Where(t => t.Received == false)
+            .Where(t => t.HotelCode == request.PropertyName)
+            .OrderBy(t => t.Id)
+            .FirstOrDefaultAsync();
+
+        if (transaction != null)
+        {
+            transaction.Sended = true;
+            transaction.SendedAt = DateTime.UtcNow;
+            transaction.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logService.Log(LogLevel.Information, $"Transaction get: \n{JsonSerializer.Serialize(transaction, _jso)}");
+        }
+        else
+        {
+            _logService.Log(LogLevel.Information, $"Transaction not found");
+        }
+
+        return transaction;
     }
 }

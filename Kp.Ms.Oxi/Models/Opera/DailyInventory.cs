@@ -21,5 +21,5 @@ public class DailyInventory
 
     [XmlArray("RoomTypeInventories")]
     [XmlArrayItem("RoomTypeInventory")]
-    public List<RoomTypeInventory> RoomTypeInventories { get; set; }
+    public List<RoomTypeInventory> RoomTypeInventories { get; set; } = [];
 }

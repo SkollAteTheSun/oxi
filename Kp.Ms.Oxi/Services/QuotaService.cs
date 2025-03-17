@@ -1,7 +1,5 @@
 ﻿using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
-using System.Xml;
-using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -18,9 +16,8 @@ public class QuotaService
         _xmlDeserializer = xmlDeserializer;
     }
 
-    public async Task<bool> UpdateRoomQuotasByRtavMessage(XmlDocument xml)
+    public async Task<bool> UpdateRoomQuotasByRtavMessage(RtavMessage message)
     {
-        var message =  _xmlDeserializer.DeserializeXmlToMessage<RtavMessage>(xml);
         if (message == null)
         {
             _logService.Log(LogLevel.Error, "Error processing message.");
@@ -29,7 +26,7 @@ public class QuotaService
 
         var roomQuotas = new List<BookingRoomQuota>();
 
-        if (message.HotelReference == null || message.DailyInventories == null)
+        if (message.HotelReference == null)
         {
             _logService.Log(LogLevel.Warning, "Invalid message: No hotel or quota data.");
             return true;
@@ -39,13 +36,11 @@ public class QuotaService
 
         foreach (var inventory in message.DailyInventories)
         {
-            if (inventory.RoomTypeInventories == null) continue;
-
             foreach (var roomTypeInventory in inventory.RoomTypeInventories)
             {
                 if (!roomTypeDict.TryGetValue(roomTypeInventory.RoomType, out var roomType))
                 {
-                    _logService.Log(LogLevel.Warning, $"Room type: {roomTypeInventory.RoomType} not found in database for hotelID: {roomType.HotelId}.");
+                    _logService.Log(LogLevel.Warning, $"Room type: {roomTypeInventory.RoomType} not found in database for hotel code: {message.HotelReference.HotelCode}.");
                     continue;
                 }
 
@@ -63,107 +58,112 @@ public class QuotaService
 
         _logService.Log(LogLevel.Information, $"Successfully matched {roomQuotas.Count} quotas for hotel code: {message.HotelReference.HotelCode}."); ;
 
-        if (roomQuotas != null && roomQuotas.Any())
+        if (roomQuotas.Any())
         {
-            await _bookingService.UpdateRoomQuotas(roomQuotas);
+            await _bookingService.UpdateAmountAsuRoomQuotas(roomQuotas);
         }
 
         return true;
     }
 
-    public async Task UpdateRoomQuotasByReservation(XmlDocument xml)
+    public async Task UpdateRoomQuotasByReservation(Reservation reservation)
     {
-        if (xml.DocumentElement.GetAttribute("mfReservationAction") != ReservationAction.ADD.ToString() &&
-            xml.DocumentElement.GetAttribute("mfReservationAction") != ReservationAction.CANCEL.ToString())
+        try
         {
-            return;
-        }
-
-        _logService.Log(LogLevel.Information, $"Try update quotas by reservation.");
-
-        var reservation = _xmlDeserializer.DeserializeXmlToMessage<Reservation>(xml);
-
-        if (reservation?.HotelReference?.HotelCode == null || reservation?.RoomStays == null)
-        {
-            _logService.Log(LogLevel.Warning, "Invalid message: No hotel or room data.");
-            return;
-        }
-
-        var roomQuotas = new List<BookingRoomQuota>();
-
-        var roomTypeDict = await GetBookingRoomTypes(reservation.HotelReference.HotelCode);
-
-        foreach (var roomStay in reservation.RoomStays)
-        {
-            if (roomStay.roomInventoryCode == null || roomStay.TimeSpan.TimeUnitType != "DAY")
+            if (reservation == null)
             {
-                continue;
+                _logService.Log(LogLevel.Error, "Error processing update room quotas by reservation.");
+                return;
             }
 
-            if (!roomTypeDict.TryGetValue(roomStay.roomInventoryCode, out var roomType))
+            if (reservation.MfReservationAction != ReservationAction.ADD.ToString() &&
+                reservation.MfReservationAction != ReservationAction.CANCEL.ToString())
             {
-                _logService.Log(LogLevel.Warning, $"Room type: {roomStay.roomInventoryCode} not found in database for hotelID: {roomType.HotelId}.");
-                continue;
+                return;
             }
 
-            var quotas = await _bookingService.GetRoomQuotas(
-                roomType.HotelId,
-                roomType.Id,
-                roomStay.TimeSpan.StartTime.Date,
-                roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits));
+            _logService.Log(LogLevel.Information, $"Try update quotas by reservation.");
 
-            if (!quotas.Any())
+            if (reservation?.HotelReference?.HotelCode == null)
             {
-                var date = roomStay.TimeSpan.StartTime.Date;
-                var toDate = roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits);
-                while (date < toDate)
+                _logService.Log(LogLevel.Warning, "Invalid message: No hotel or room data.");
+                return;
+            }
+
+            var roomQuotas = new List<BookingRoomQuota>();
+
+            var roomTypeDict = await GetBookingRoomTypes(reservation.HotelReference.HotelCode);
+
+            foreach (var roomStay in reservation.RoomStays)
+            {
+                if (roomStay.roomInventoryCode == null || roomStay.TimeSpan.TimeUnitType != "DAY")
                 {
-                    quotas.Add(new BookingRoomQuota()
-                    {
-                        HotelId = roomType.HotelId,
-                        RoomTypeId = roomType.Id,
-                        Date = date,
-                        Amount = 0,
-                        Close = false,
-                        AmountAsu = 0,
-                        ReservedAsu = 0
-                    });
-                    date = date.AddDays(1);
+                    continue;
                 }
+
+                if (!roomTypeDict.TryGetValue(roomStay.roomInventoryCode, out var roomType))
+                {
+                    _logService.Log(LogLevel.Warning, $"Room type: {roomStay.roomInventoryCode} not found in database for hotel code: {reservation.HotelReference.HotelCode}.");
+                    continue;
+                }
+
+                var quotas = await _bookingService.GetRoomQuotas(
+                    roomType.HotelId,
+                    roomType.Id,
+                    roomStay.TimeSpan.StartTime.Date,
+                    roomStay.TimeSpan.StartTime.Date.AddDays(roomStay.TimeSpan.NumberOfTimeUnits));
+
+                for (var i = 0; i < roomStay.TimeSpan.NumberOfTimeUnits; i++)
+                {
+                    var date = roomStay.TimeSpan.StartTime.Date.AddDays(i);
+
+                    if (!quotas.Any(quota => quota.Date.Date == date))
+                    {
+                        quotas.Add(new BookingRoomQuota()
+                        {
+                            HotelId = roomType.HotelId,
+                            RoomTypeId = roomType.Id,
+                            Date = date,
+                            Amount = 0,
+                            Close = false,
+                            AmountAsu = 0,
+                            ReservedAsu = 0
+                        });
+                    }
+                }
+
+                quotas.ForEach(quota => quota.ReservedAsu = reservation.MfReservationAction == ReservationAction.ADD.ToString()
+                    ? quota.ReservedAsu + 1
+                    : quota.ReservedAsu - 1);
+
+                if (quotas.Any())
+                {
+                    await _bookingService.UpdateRoomQuotas(quotas);
+                }
+
+                roomQuotas.AddRange(quotas);
             }
 
-            if (reservation.MfReservationAction == ReservationAction.ADD.ToString())
-            {
-                quotas.ForEach(quota => quota.ReservedAsu += 1);
-            }
-
-            if (reservation.MfReservationAction == ReservationAction.CANCEL.ToString())
-            {
-                quotas.ForEach(quota => quota.ReservedAsu -= 1);
-            }
-
-            if (quotas != null && quotas.Any())
-            {
-                await _bookingService.UpdateAmountRoomQuotas(quotas);
-            }
-
-            roomQuotas.AddRange(quotas);
+            _logService.Log(LogLevel.Information, $"{roomQuotas.Count} quotas by reservation \"{reservation.ReservationId}\" successfully updated.");
         }
-
-        _logService.Log(LogLevel.Information, $"{roomQuotas.Count} quotas by reservation \"{reservation.ReservationId}\" successfully updated.");
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"Failed to update room quotas by reservation: {ex.Message}");
+        }
     }
-    
-    public async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
+
+    private async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
     {
-        var hotelId = await _bookingService.GetHotelId(hotelCode);
-        if (hotelId == null)
+        var hotel = await _bookingService.GetHotel(hotelCode);
+        if (hotel == null)
         {
             _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
             return new Dictionary<string, BookingRoomTypes>();
         }
 
-        var roomTypes = await _bookingService.GetRoomTypes(hotelId.Value);
+        var roomTypes = await _bookingService.GetRoomTypes(hotel.Id);
 
         return roomTypes?.ToDictionary(key => key.HrsCode, value => value);
     }
+
 }
