@@ -297,7 +297,7 @@ public class PmsService
                 return;
             }
 
-            var contract = new ShopReservationContract()
+            var reservationContract = new ShopReservationContract()
             {
                 Key = _settings.Shop.ApiKey,
                 Number = checkOut.BookingId,
@@ -305,9 +305,21 @@ public class PmsService
                 Status = ShopReservationStatus.finished.ToString()
             };
 
-            var result = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.Shop.Url, contract);
+            var reservationResult = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.Shop.EditReservationStatusUrl, reservationContract);
 
-            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToShop);
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.ReservationStatusEdited);
+
+            var orderId = checkOut?.BookingId?.Split("-")?[1];
+
+            var paymentReceiptContract = new ShopPaymentReceiptContract()
+            {
+                OrderId = orderId,
+                Secret = _settings.Shop.Secret,
+            };
+
+            var paymentReceiptResult = await _httpClient.PostAsync<ShopPaymentReceiptContract, object>(_settings.Shop.FullPaymentReceiptUrl, paymentReceiptContract);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.FullPaymentReceiptSended);
 
             _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Shop successfully.");
         }
