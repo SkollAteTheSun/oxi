@@ -32,6 +32,7 @@ public class PmsService
     private const string ROUTING_PREFIX = "check-out-routing";
 
     private readonly IDictionary<string, string> _mindboxDefaultHeaders;
+    private readonly IDictionary<string, string> _bookingDefaultHeaders;
     private const string _authScheme = "Bearer";
     private const string _uniqueViolation = "23505";
 
@@ -54,13 +55,19 @@ public class PmsService
         {
             { HeaderNames.Authorization, $"{_authScheme} {_settings.Mindbox.Token}" }
         };
+
+        _bookingDefaultHeaders = new Dictionary<string, string>()
+        {
+            { "api_token", _settings.Booking.ApiToken }
+        };
+
         using (var context = _contextFactory.CreateDbContext())
         {
             _hotels = context
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
-        
+
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
     }
 
@@ -161,7 +168,7 @@ public class PmsService
                     checkOut = JsonConvert.DeserializeObject<CheckOutInfo>(Encoding.UTF8.GetString(body));
 
                     await SavingPipeline(checkOut, async () =>
-                    { 
+                    {
                         await SendToBooking(checkOut);
 
                         await SendToShop(checkOut);
@@ -219,7 +226,7 @@ public class PmsService
 
             var innerException = (PostgresException)ex.InnerException;
             if (innerException.SqlState != _uniqueViolation)
-            { 
+            {
                 throw ex;
             }
         }
@@ -241,14 +248,25 @@ public class PmsService
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Booking...");
 
+            var reservationId = checkOut?.BookingId?.Split("-")?.LastOrDefault();
+
+            if (string.IsNullOrWhiteSpace(reservationId))
+            {
+                _logger.LogWarning($"Invalid booking id for reservation: {checkOut.Id}");
+                return;
+            }
+
             var contract = new BookingContract()
             {
-                ReservationId = checkOut.ExternalId,
+                ReservationId = reservationId,
                 DateCheckOut = checkOut.CheckOutDate,
                 ApiToken = _settings.Booking.ApiToken
             };
 
-            var result = await _httpClient.PostAsync<BookingContract, object>(_settings.Booking.Url, contract);
+            var result = await _httpClient.PostAsync<BookingContract, object>(
+                _settings.Booking.Url,
+                contract,
+                headers: _bookingDefaultHeaders);
 
             await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToBooking);
 
@@ -271,7 +289,13 @@ public class PmsService
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
 
-            var reservationId = checkOut.BookingId.Split("-").LastOrDefault();
+            var reservationId = checkOut?.BookingId?.Split("-")?.LastOrDefault();
+
+            if (string.IsNullOrWhiteSpace(reservationId))
+            {
+                _logger.LogWarning($"Invalid booking id for reservation: {checkOut.Id}");
+                return;
+            }
 
             var contract = new ShopReservationContract()
             {
@@ -304,6 +328,12 @@ public class PmsService
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Mindbox...");
 
+            if (string.IsNullOrWhiteSpace(checkOut?.BookingId))
+            {
+                _logger.LogWarning($"Invalid booking id for reservation: {checkOut.Id}");
+                return;
+            }
+
             var contract = new MindboxContract()
             {
                 OrderId = checkOut.BookingId,
@@ -330,7 +360,8 @@ public class PmsService
     {
         try
         {
-            foreach (var email in _settings.Mail.Emails) {
+            foreach (var email in _settings.Mail.Emails)
+            {
                 var mail = new Mail()
                 {
                     ToEmail = email,
