@@ -105,70 +105,70 @@ namespace Kp.Ms.Oxi.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("59e50cc0-9f76-4a5f-b6c7-79334f59a7d9"),
+                            Id = new Guid("aea5d99c-8ff1-448a-baf6-0a2efe36f127"),
                             Code = "RIXOS",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Риксос Красная Поляна Сочи"
                         },
                         new
                         {
-                            Id = new Guid("b4ad5ec4-c25a-40ea-88ce-c037ffec3e03"),
+                            Id = new Guid("d10f490d-a62b-4396-8d10-b41addbe035b"),
                             Code = "AERMC",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Сочи Марриотт Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("ff700dc8-0e0f-41e0-9a4d-746b25296d11"),
+                            Id = new Guid("4af397f8-ade2-472c-bade-1e08dc05e6df"),
                             Code = "HB769",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Новотель Фит Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("16742ceb-8714-4c32-9c8b-7998b24d9aae"),
+                            Id = new Guid("d4fde7b7-cb39-4ab3-b207-dcfb028b4919"),
                             Code = "HB530",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Новотель Резорт и спа Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("e0cb3488-44b8-4d21-b137-f526ce287b10"),
+                            Id = new Guid("60355e46-5a2d-4772-ac1b-fa014403893e"),
                             Code = "HB755",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Мовенпик Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("d46b4d41-fb17-4331-ba5e-91c980b30721"),
+                            Id = new Guid("3cc43174-9a92-4765-84cc-62a760eaa91e"),
                             Code = "SCODL",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Долина 960"
                         },
                         new
                         {
-                            Id = new Guid("6910b197-7ed8-467c-ac02-17bdde61e193"),
+                            Id = new Guid("94d2d5e0-c6ac-4756-9b47-e335173422a5"),
                             Code = "HB754",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Ибис Стайлс Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("d320e8f2-cb3f-4bfb-a73f-0709b804d48d"),
+                            Id = new Guid("8304dc32-6580-44e2-80eb-8b4cb168051f"),
                             Code = "HB933",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Панорама by Mercure Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("ab68de50-f9cd-45f3-9306-9de69362e361"),
+                            Id = new Guid("a8645454-a521-46e8-a740-0c0d3f3da685"),
                             Code = "AERCS",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Кортъярд Марриотт Сочи Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("1a1635f2-f8fe-41d7-b138-d1f8ca75aa41"),
+                            Id = new Guid("f8722c54-e89e-47e6-be47-a2767a953f46"),
                             Code = "APART",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Апартаменты Курорта Красная Поляна"
@@ -187,6 +187,16 @@ namespace Kp.Ms.Oxi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<bool>("Delivered")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("delivered");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
 
                     b.Property<string>("HotelCode")
                         .IsRequired()

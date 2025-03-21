@@ -18,6 +18,8 @@ public class TransactionBuilder : IEntityTypeConfiguration<Transaction>
         builder.Property(x => x.InterfaceName).HasColumnName("interface_name").IsRequired();
         builder.Property(x => x.InterfaceType).HasColumnName("interface_type");
         builder.Property(x => x.Sended).HasColumnName("sended").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.Delivered).HasColumnName("delivered").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.DeliveredAt).HasColumnName("delivered_at");
         builder.Property(x => x.SendedAt).HasColumnName("sended_at");
         builder.Property(x => x.Received).HasColumnName("received").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.ReceivedAt).HasColumnName("received_at");

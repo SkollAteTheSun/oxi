@@ -35,6 +35,16 @@ public class TransactionController : ControllerBase
         return Ok(dtos);
     }
 
+    [HttpPost("acknowledge")]
+    [AuthToken]
+    [SwaggerOperation(Summary = "Подтверждение передачи транзакций в PMS")]
+    public async Task<ActionResult<List<long>>> AcknowledgeTransaction([FromBody] List<long> request)
+    {
+        var transactions = await _transactionService.AcknowledgeAsync(request);
+
+        return Ok(transactions);
+    }
+
     [HttpGet("one")]
     [SwaggerOperation(Summary = "Получение одной транзакции")]
     public async Task<ActionResult<string>> GetTransaction([FromQuery] TransactionOneRequest request)

@@ -229,10 +229,10 @@ public class MessageService
             }
 
             var getGuestCount = new Func<ReservationGuestAgeCode, int>(
-                (guest) => reservation.GuestCounts.FirstOrDefault(guestCount => guestCount.AgeQualifyingCode == guest.ToString())?.MfCount ?? 0);
+                (guest) => reservation.GuestCounts?.FirstOrDefault(guestCount => guestCount.AgeQualifyingCode == guest.ToString())?.MfCount ?? 0);
 
-            var hotel = await _bookingService.GetHotel(reservation.HotelReference.HotelCode);
-            var roomType = await _bookingService.GetRoomType(hotel.Id, reservation.RoomStays.FirstOrDefault()?.roomInventoryCode);
+            var hotel = await _bookingService.GetHotel(reservation.HotelReference?.HotelCode);
+            var roomType = await _bookingService.GetRoomType(hotel.Id, reservation.RoomStays?.FirstOrDefault()?.roomInventoryCode);
 
             var existsReservationAsu = await _bookingService.GetReservationAsu(hotel.Id, reservation.ReservationId);
 
@@ -240,12 +240,10 @@ public class MessageService
             {
                 Id = existsReservationAsu?.Id ?? 0,
                 ExternalId = reservation.ReservationId,
-                HotelId = hotel.Id,
-                RoomTypeId = roomType.Id,
-                Total = (ulong)reservation.RoomRevenues.Sum(roomRevenue => roomRevenue.NetRoomRate.ValueNum),
-                RoomQuantity = Convert.ToByte(reservation.RoomStays.Count),
-                DateIn = DateOnly.FromDateTime(reservation.StayDateRange.StartTime),
-                DateOut = DateOnly.FromDateTime(reservation.StayDateRange.StartTime.AddDays(reservation.StayDateRange.NumberOfTimeUnits)),
+                HotelId = hotel?.Id,
+                RoomTypeId = roomType?.Id,
+                Total = (ulong)reservation.RoomRevenues?.Sum(roomRevenue => roomRevenue?.NetRoomRate?.ValueNum),
+                RoomQuantity = reservation.RoomStays?.Count,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = existsReservationAsu != null ? DateTime.UtcNow : null,
                 Adults = getGuestCount.Invoke(ReservationGuestAgeCode.ADULT),
@@ -254,7 +252,18 @@ public class MessageService
                 Babies = getGuestCount.Invoke(ReservationGuestAgeCode.BABY)
             };
 
-            await _bookingService.UpsertReservationAsu(reservationAsu);
+            if (reservation.StayDateRange?.StartTime != null)
+            {
+                reservationAsu.DateIn = DateOnly.FromDateTime(reservation.StayDateRange.StartTime);
+                reservationAsu.DateOut = DateOnly.FromDateTime(reservation.StayDateRange.StartTime.AddDays(reservation.StayDateRange?.NumberOfTimeUnits ?? 0));
+            }
+            else
+            {
+                reservationAsu.DateIn = null;
+                reservationAsu.DateOut = null;
+            }
+
+                await _bookingService.UpsertReservationAsu(reservationAsu);
         }
         catch (Exception ex)
         {
