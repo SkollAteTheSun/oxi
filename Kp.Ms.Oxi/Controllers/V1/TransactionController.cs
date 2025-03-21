@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Kp.Ms.Oxi.Attributes;
 using Kp.Ms.Oxi.Converters;
 using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
 using Kp.Ms.Oxi.Services;
@@ -48,12 +49,23 @@ public class TransactionController : ControllerBase
     [SwaggerOperation(Summary = "Получение одной транзакции")]
     public async Task<ActionResult<string>> GetTransaction([FromQuery] TransactionOneRequest request)
     {
-        Transaction? transaction = await _transactionService.TakeFirstAsync(request);
-        if (transaction == null)
+        try
         {
-            return NoContent();
-        }
+            Transaction? transaction = await _transactionService.TakeFirstAsync(request);
+            if (transaction == null)
+            {
+                return NoContent();
+            }
 
-        return Ok(transaction.Xml);
+            return Ok(transaction.Xml);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new StatusDto
+            {
+                Status = StatusType.Fail.ToString().ToLower(),
+                Message = ex.Message
+            });
+        }
     }
 }
