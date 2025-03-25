@@ -1,4 +1,4 @@
-using System.Text;
+п»їusing System.Text;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Serialization;
@@ -270,7 +270,7 @@ public class RateService
             return false;
         }
 
-        var roomTypeDict = await _bookingService.GetRoomTypesByHrsCodes2(hotelId.Value, rateHeader.RoomTypeList);
+        var roomTypeDict = await _bookingService.GetRoomTypesByHrsCodes(hotelId.Value, rateHeader.RoomTypeList);
 
         var rateId = await _bookingService.GetRateId(rateHeader.RateCode, hotelId.Value);
         if (!rateId.HasValue)
@@ -305,7 +305,7 @@ public class RateService
             {
                 foreach (var roomTypeCode in rateDetail.RoomTypes)
                 {
-                    //по каждому коду roomType, который нашли в базе
+                    //РїРѕ РєР°Р¶РґРѕРјСѓ РєРѕРґСѓ roomType, РєРѕС‚РѕСЂС‹Р№ РЅР°С€Р»Рё РІ Р±Р°Р·Рµ
                     if (!roomTypeDict.TryGetValue(roomTypeCode, out var roomType))
                     {
                         _logService.Log(LogLevel.Warning, $"Room type {roomTypeCode} not found in database for hotelID: {hotelId.Value}.");
@@ -353,45 +353,45 @@ public class RateService
         ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0, rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
         ulong[] childRates = { rateDetail.Child1RateOwnRoom ?? 0, rateDetail.Child2RateOwnRoom ?? 0, rateDetail.Child3RateOwnRoom ?? 0, rateDetail.Child4RateOwnRoom ?? 0 };
 
-        // Основные места для взрослых
+        // РћСЃРЅРѕРІРЅС‹Рµ РјРµСЃС‚Р° РґР»СЏ РІР·СЂРѕСЃР»С‹С…
         for (byte adults = 1; adults <= adultRates.Length; adults++)
         {
             ulong adultRate = adultRates[adults - 1];
-            if (adultRate == 0) continue; // Пропускаем если тариф для этого количества взрослых не задан
+            if (adultRate == 0) continue; // РџСЂРѕРїСѓСЃРєР°РµРј РµСЃР»Рё С‚Р°СЂРёС„ РґР»СЏ СЌС‚РѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° РІР·СЂРѕСЃР»С‹С… РЅРµ Р·Р°РґР°РЅ
 
-            // Базовый вариант без детей и младенцев
+            // Р‘Р°Р·РѕРІС‹Р№ РІР°СЂРёР°РЅС‚ Р±РµР· РґРµС‚РµР№ Рё РјР»Р°РґРµРЅС†РµРІ
             rates.Add(new RateInfo(adults, 0, 0, (int)adultRate, (long)adultRate, 0, 0));
 
-            // Варианты с детьми
+            // Р’Р°СЂРёР°РЅС‚С‹ СЃ РґРµС‚СЊРјРё
             if (allowChildren)
             {
                 for (byte children = 1; children <= childRates.Length && adults + children <= mainSeats; children++)
                 {
                     ulong childRate = childRates[children - 1];
-                    if (childRate == 0) continue; // Пропускаем если тариф для детей не задан
+                    if (childRate == 0) continue; // РџСЂРѕРїСѓСЃРєР°РµРј РµСЃР»Рё С‚Р°СЂРёС„ РґР»СЏ РґРµС‚РµР№ РЅРµ Р·Р°РґР°РЅ
 
                     long totalAmount = (long)(adultRate + childRate);
                     rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0));
                 }
             }
 
-            // Варианты с младенцами (добавляем к каждому существующему варианту для этого количества взрослых)
+            // Р’Р°СЂРёР°РЅС‚С‹ СЃ РјР»Р°РґРµРЅС†Р°РјРё (РґРѕР±Р°РІР»СЏРµРј Рє РєР°Р¶РґРѕРјСѓ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРјСѓ РІР°СЂРёР°РЅС‚Сѓ РґР»СЏ СЌС‚РѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° РІР·СЂРѕСЃР»С‹С…)
             if (allowBabies)
             {
-                // Создаем копии существующих вариантов с младенцами
+                // РЎРѕР·РґР°РµРј РєРѕРїРёРё СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёС… РІР°СЂРёР°РЅС‚РѕРІ СЃ РјР»Р°РґРµРЅС†Р°РјРё
                 var existingRates = rates.Where(r => r.Adults == adults && r.Babies == 0).ToList();
                 foreach (var rate in existingRates)
                 {
-                    // Вариант с одним младенцем
+                    // Р’Р°СЂРёР°РЅС‚ СЃ РѕРґРЅРёРј РјР»Р°РґРµРЅС†РµРј
                     rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 0));
 
-                    // Вариант с одним младенцем и колыбелью
+                    // Р’Р°СЂРёР°РЅС‚ СЃ РѕРґРЅРёРј РјР»Р°РґРµРЅС†РµРј Рё РєРѕР»С‹Р±РµР»СЊСЋ
                     rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 1));
                 }
             }
         }
 
-        // Дополнительные места (если есть)
+        // Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РјРµСЃС‚Р° (РµСЃР»Рё РµСЃС‚СЊ)
         if (extraBedCapacity > 0 && rateDetail.ExtraBed > 0)
         {
             var ratesWithExtra = new List<RateInfo>();

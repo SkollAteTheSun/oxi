@@ -44,11 +44,7 @@ public class PmsService
         IDbContextFactory<DefaultContext> contextFactory)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        _rabbitMQClient = rabbitMQClient; //?? throw new ArgumentNullException(nameof(rabbitMQClient));
-
-        //_rabbitMQClient = rabbitMQClient ?? throw new ArgumentNullException(nameof(rabbitMQClient));
-        
+        _rabbitMQClient = rabbitMQClient ?? throw new ArgumentNullException(nameof(rabbitMQClient));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _openSearchClient = openSearchClient ?? throw new ArgumentNullException(nameof(openSearchClient));
         _settings = settings.Value ?? throw new ArgumentNullException(nameof(settings));
@@ -59,14 +55,12 @@ public class PmsService
             { HeaderNames.Authorization, $"{_authScheme} {_settings.Mindbox.Token}" }
         };
 
-        /*
         using (var context = _contextFactory.CreateDbContext())
         {
             _hotels = context
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
-        */
         
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
     }

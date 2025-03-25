@@ -290,7 +290,7 @@ public class BookingService
         return roomTypes;
     }
 
-    public async Task<Dictionary<string, ulong>> GetRoomTypesByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
+    public async Task<Dictionary<string, ulong>> GetRoomTypesIdByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
     {
         using var context = _contextFactory.CreateDbContext();
 
@@ -303,7 +303,7 @@ public class BookingService
         return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt.Id);
     }
 
-    public async Task<Dictionary<string, BookingRoomTypes>> GetRoomTypesByHrsCodes2(ulong hotelId, IEnumerable<string> hrsCodes)
+    public async Task<Dictionary<string, BookingRoomTypes>> GetRoomTypesByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
     {
         using var context = _contextFactory.CreateDbContext();
 
