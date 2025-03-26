@@ -184,10 +184,13 @@ public class BookingService
 
                 if (existingQuota != null)
                 {
+                    existingQuota.Amount = quota.Amount != null ? quota.Amount : existingQuota.Amount;
                     existingQuota.AmountAsu = quota.AmountAsu;
+                    existingQuota.ReservedAsu = quota.ReservedAsu;
                 }
                 else
                 {
+                    quota.Amount = quota.Amount != null ? quota.Amount : 0;
                     existingQuotas.Add(quota);
                 }
             }

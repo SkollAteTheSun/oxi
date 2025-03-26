@@ -10,7 +10,7 @@ public class BookingRoomQuota
 
     public DateTime Date { get; set; }
 
-    public long Amount { get; set; }
+    public long? Amount { get; set; }
 
     public ulong? RateId { get; set; }
 

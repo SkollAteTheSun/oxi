@@ -85,7 +85,7 @@ public class MessageService
 
             await UpsertReservationAsu(reservation);
 
-            await _quotaService.UpdateRoomQuotasByReservation(reservation);
+            //await _quotaService.UpdateRoomQuotasByReservation(reservation);
         }
 
         if (root.Name == nameof(RtavMessage) && root.NamespaceURI.Contains("rtav.fidelio"))

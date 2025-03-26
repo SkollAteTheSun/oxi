@@ -42,6 +42,8 @@ public class BookingRoomTypes
     public byte? ExtraBedCapacity { get; set; } = 0;
     public bool NotAvailForChildren { get; set; } = false;
     public bool NotAvailForBaby { get; set; } = false;
+    public bool QuotasFromAsu { get; set; } = false;
+    public bool OverbookingInAsu { get; set; } = false;
 
     [MaxLength(255)]
     public string? HrsCode { get; set; }
@@ -51,6 +53,4 @@ public class BookingRoomTypes
 
     [MaxLength(255)]
     public string? Panorama { get; set; }
-
-    public ICollection<BookingRoomQuota> RoomQuotas { get; set; }
 }

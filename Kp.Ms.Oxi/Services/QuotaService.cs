@@ -44,12 +44,18 @@ public class QuotaService
                     continue;
                 }
 
+                long? amount = roomType.QuotasFromAsu
+                    ? roomTypeInventory.Available + (roomTypeInventory?.Definite?.ResvCount ?? 0)
+                    : null;
+
                 var roomQuota = new BookingRoomQuota
                 {
                     HotelId = roomType.HotelId,
                     RoomTypeId = roomType.Id,
                     Date = inventory.Datum,
-                    AmountAsu = roomTypeInventory.Available
+                    Amount = amount,
+                    AmountAsu = roomTypeInventory.Available,
+                    ReservedAsu = roomTypeInventory?.Definite?.ResvCount ?? 0
                 };
 
                 roomQuotas.Add(roomQuota);
