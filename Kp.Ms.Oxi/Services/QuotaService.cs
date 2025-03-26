@@ -7,11 +7,13 @@ public class QuotaService
 {
     private readonly LogService _logService;
     private readonly BookingService _bookingService;
+    private readonly XmlDeserializer _xmlDeserializer;
 
-    public QuotaService(LogService logService, BookingService bookingService)
+    public QuotaService(LogService logService, BookingService bookingService, XmlDeserializer xmlDeserializer)
     {
         _logService = logService;
         _bookingService = bookingService;
+        _xmlDeserializer = xmlDeserializer;
     }
 
     public async Task<bool> UpdateRoomQuotasByRtavMessage(RtavMessage message)
@@ -150,17 +152,18 @@ public class QuotaService
         }
     }
 
-    private async Task<Dictionary<string, BookingRoomType>> GetBookingRoomTypes(string hotelCode)
+    private async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
     {
         var hotel = await _bookingService.GetHotel(hotelCode);
         if (hotel == null)
         {
             _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
-            return new Dictionary<string, BookingRoomType>();
+            return new Dictionary<string, BookingRoomTypes>();
         }
 
         var roomTypes = await _bookingService.GetRoomTypes(hotel.Id);
 
         return roomTypes?.ToDictionary(key => key.HrsCode, value => value);
     }
+
 }

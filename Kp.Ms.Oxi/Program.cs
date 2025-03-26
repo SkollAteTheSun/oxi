@@ -7,6 +7,8 @@ using Common.RabbitMQClient.Config;
 using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Extensions;
+using Kp.Ms.Oxi.Factories;
+using Kp.Ms.Oxi.Interfaces;
 using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -34,6 +36,12 @@ builder.Services.AddDbContextFactory<BookingContext>(
         options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString));
     }, ServiceLifetime.Transient
 );
+
+builder.Services.AddDbContextFactory<DynamicBookingContext>(options =>
+    options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString))
+);
+
+builder.Services.AddTransient<IDynamicBookingContextFactory, DynamicBookingContextFactory>();
 
 string? defaultConnectionString = builder.Configuration.GetConnectionString("Db");
 if (string.IsNullOrEmpty(defaultConnectionString))
@@ -118,6 +126,7 @@ builder.Services.AddTransient<MessageService>();
 builder.Services.AddTransient<TransactionService>();
 builder.Services.AddTransient<QuotaService>();
 builder.Services.AddTransient<BookingService>();
+builder.Services.AddTransient<XmlDeserializer>();
 
 builder.Services.AddOptions<CheckOutProcessingSettings>()
     .Bind(builder.Configuration.GetSection("CheckOutProcessing"));

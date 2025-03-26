@@ -25,6 +25,7 @@ public class MessageService
     private readonly LogService _logService;
     private readonly ReservationService _reservationService;
     private readonly QuotaService _quotaService;
+    private readonly RateService _rateService;
     private readonly BookingService _bookingService;
 
     public MessageService(
@@ -33,13 +34,15 @@ public class MessageService
         LogService logService,
         ReservationService reservationService,
         QuotaService quotaService,
-        BookingService bookingService)
+        BookingService bookingService,
+        RateService rateService)
     {
         _configuration = configuration;
         _context = context;
         _logService = logService;
         _reservationService = reservationService;
         _quotaService = quotaService;
+        _rateService = rateService;
         _bookingService = bookingService;
     }
 
@@ -89,6 +92,11 @@ public class MessageService
         {
             var rtavMessage = DeserializeXmlToObject<RtavMessage>(xml);
             return await _quotaService.UpdateRoomQuotasByRtavMessage(rtavMessage);
+        }
+
+        if (root.Name == nameof(RateHeader) && root.NamespaceURI.Contains("rate.fidelio"))
+        {
+           return await _rateService.UpdateRatesByRateHeader(xml);
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))
