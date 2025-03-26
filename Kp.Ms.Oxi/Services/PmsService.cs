@@ -4,6 +4,7 @@ using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
@@ -171,7 +172,9 @@ public class PmsService
                     {
                         await SendToBooking(checkOut);
 
-                        await SendToShop(checkOut);
+                        await EditReservationStatusInShop(checkOut);
+
+                        await SendFullPaymentReceiptInShop(checkOut);
 
                         await SendToMindbox(checkOut);
                     });
@@ -278,36 +281,73 @@ public class PmsService
         }
     }
 
-    private async ValueTask SendToShop(CheckOutInfo checkOut)
+    private async ValueTask EditReservationStatusInShop(CheckOutInfo checkOut)
     {
         try
         {
-            if (!_settings.Shop.Enabled)
+            if (!_settings.ShopEditReservationStatus.Enabled)
+            {
+                return;
+            }
+
+            _logger.LogInformation($"Try edit status for reservation \"{checkOut.ExternalId}\" in Shop...");
+
+            var reservationId = checkOut?.BookingId?.Split("-")?.LastOrDefault();
+
+            if (string.IsNullOrWhiteSpace(reservationId))
+            {
+                _logger.LogWarning($"Invalid reservation id: {checkOut.Id}");
+                return;
+            }
+
+            var reservationContract = new ShopReservationContract()
+            {
+                Key = _settings.ShopEditReservationStatus.ApiKey,
+                Number = checkOut.BookingId,
+                Id = reservationId,
+                Status = ShopReservationStatus.finished.ToString()
+            };
+
+            var reservationResult = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.ShopEditReservationStatus.Url, reservationContract);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.ReservationStatusEdited);
+
+            _logger.LogInformation($"Status for reservation \"{checkOut.ExternalId}\" in Shop edited successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while editing reservation status by check-out in Shop. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendFullPaymentReceiptInShop(CheckOutInfo checkOut)
+    {
+        try
+        {
+            if (!_settings.ShopFullPaymentReceipt.Enabled)
             {
                 return;
             }
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
 
-            var reservationId = checkOut?.BookingId?.Split("-")?.LastOrDefault();
+            var orderId = checkOut?.BookingId?.Split("-")?[1];
 
-            if (string.IsNullOrWhiteSpace(reservationId))
+            if (string.IsNullOrWhiteSpace(orderId))
             {
-                _logger.LogWarning($"Invalid booking id for reservation: {checkOut.Id}");
+                _logger.LogWarning($"Invalid order id for reservation: {checkOut.Id}");
                 return;
             }
 
-            var contract = new ShopReservationContract()
+            var paymentReceiptContract = new ShopPaymentReceiptContract()
             {
-                Key = _settings.Shop.ApiKey,
-                Number = checkOut.BookingId,
-                Id = reservationId,
-                Status = ShopReservationStatus.finished.ToString()
+                OrderId = orderId,
+                Secret = _settings.ShopFullPaymentReceipt.Secret,
             };
 
-            var result = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.Shop.Url, contract);
+            var paymentReceiptResult = await _httpClient.PostAsync<ShopPaymentReceiptContract, object>(_settings.ShopFullPaymentReceipt.Url, paymentReceiptContract);
 
-            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToShop);
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.FullPaymentReceiptSended);
 
             _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Shop successfully.");
         }

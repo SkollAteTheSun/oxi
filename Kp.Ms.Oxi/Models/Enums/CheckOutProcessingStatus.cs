@@ -5,7 +5,8 @@ public enum CheckOutProcessingStatus
     Detected,
     Queued,
     SendedToBooking,
-    SendedToShop,
+    ReservationStatusEdited,
+    FullPaymentReceiptSended,
     SendedToMindbox,
     Saved,
     Failed
