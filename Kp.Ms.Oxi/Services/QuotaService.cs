@@ -1,5 +1,6 @@
 ﻿using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
+using Microsoft.OpenApi.Extensions;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -32,7 +33,7 @@ public class QuotaService
             return true;
         }
 
-        var roomTypeDict = await GetBookingRoomTypes(message.HotelReference.HotelCode);
+        var roomTypeDict = await GetBookingRoomTypes(message.HotelReference.HotelCode);  
 
         foreach (var inventory in message.DailyInventories)
         {
@@ -44,9 +45,13 @@ public class QuotaService
                     continue;
                 }
 
-                long? amount = roomType.QuotasFromAsu
-                    ? roomTypeInventory.Available + (roomTypeInventory?.Definite?.ResvCount ?? 0)
-                    : null;
+                long? amount = null;
+
+                if (roomType.QuotasFromAsu)
+                {
+                    var reservedKp = await _bookingService.GetReservedKpCount(roomType, inventory.Datum);
+                    amount = roomTypeInventory.Available + reservedKp;
+                }
 
                 var roomQuota = new BookingRoomQuota
                 {

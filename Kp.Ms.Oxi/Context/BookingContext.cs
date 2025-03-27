@@ -17,6 +17,7 @@ public class BookingContext : DbContext
     public DbSet<BookingRoomTypes> RoomTypes { get; set; }
     public DbSet<BookingRoomQuota> RoomQuotas { get; set; }
     public DbSet<BookingReservationAsu> ReservationsAsu { get; set; }
+    public DbSet<BookingReservation> Reservations { get; set; }
     public DbSet<BookingRates> Rates { get; set; }
     public DbSet<BookingRoomRates> BookingRoomRates { get; set; }
 
@@ -33,6 +34,7 @@ public class BookingContext : DbContext
         
         modelBuilder.Entity<BookingHotel>().ToTable("hotels", t => t.ExcludeFromMigrations());
         modelBuilder.Entity<BookingRates>().ToTable("rates", t => t.ExcludeFromMigrations());
+        modelBuilder.Entity<BookingReservation>().ToTable("reservations", t => t.ExcludeFromMigrations());
 
         modelBuilder
             .Entity<BookingRoomTypes>()
