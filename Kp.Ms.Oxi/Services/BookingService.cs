@@ -57,6 +57,22 @@ public class BookingService
         return hotel;
     }
 
+    public async Task<int> GetReservedKpCount(BookingRoomTypes roomType, DateTime date)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var reserved = await context.Reservations
+            .Where(reservation => reservation.HotelId == roomType.HotelId)
+            .Where(reservation => reservation.RoomTypeId == roomType.Id)
+            .Where(reservation => reservation.DateIn <= date.Date)
+            .Where(reservation => reservation.DateOut > date.Date)
+            .Where(reservation => reservation.Status != BookingReservationStatuses.cancelled.ToString())
+            .Where(reservation => reservation.Status != BookingReservationStatuses.refund.ToString())
+            .Where(reservation => reservation.Status != BookingReservationStatuses.closed.ToString())
+            .CountAsync();
+
+        return reserved;
+    }
+
     public async Task<List<BookingRoomQuota>> GetRoomQuotas(ulong hotelId, ulong roomTypeId, DateTime fromDate, DateTime toDate)
     {
         _logService.Log(LogLevel.Information, $"Start getting quotas.");
