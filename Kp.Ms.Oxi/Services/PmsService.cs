@@ -4,7 +4,6 @@ using Kp.Ms.Oxi.Config;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
-using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +12,7 @@ using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Npgsql;
 using OpenSearch.Client;
+using System.Net.Mime;
 using System.Text;
 
 namespace Kp.Ms.Oxi.Services;
@@ -345,7 +345,10 @@ public class PmsService
                 Secret = _settings.ShopFullPaymentReceipt.Secret,
             };
 
-            var paymentReceiptResult = await _httpClient.PostAsync<ShopPaymentReceiptContract, object>(_settings.ShopFullPaymentReceipt.Url, paymentReceiptContract);
+            var paymentReceiptResult = await _httpClient.PostAsync<ShopPaymentReceiptContract, object>(
+                _settings.ShopFullPaymentReceipt.Url,
+                paymentReceiptContract,
+                MediaTypeNames.Application.FormUrlEncoded);
 
             await LogCheckOut(checkOut, CheckOutProcessingStatus.FullPaymentReceiptSended);
 
