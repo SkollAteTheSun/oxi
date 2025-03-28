@@ -1,12 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using Common.HttpClientWrapper.Attributes;
 
 namespace Kp.Ms.Oxi.Models.Request;
 
 public class ShopPaymentReceiptContract
 {
-    [JsonProperty("order_id")]
+    [FormProperty("order_id")]
     public string OrderId { get; set; }
 
-    [JsonProperty("secret")]
+    [FormProperty("secret")]
     public string Secret { get; set; }
 }
