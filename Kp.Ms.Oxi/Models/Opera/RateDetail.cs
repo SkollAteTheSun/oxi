@@ -57,7 +57,10 @@ public class RateDetail
     
     [XmlElement("extraBed")]
     public ulong ExtraBed { get; set; }
-    
+
+    [XmlElement("child")]
+    public ulong ExtraChild { get; set; }
+
     [XmlElement("RateDaysOfWeek")]
     public required RateDetailDaysOfWeek DaysOfWeek { get; set; }
     

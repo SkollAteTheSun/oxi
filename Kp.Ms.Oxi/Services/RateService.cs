@@ -330,7 +330,9 @@ public class RateService
                             Active = true,
                             Amount = rate.Amount,
                             BasePrice = rate.BasePrice,
-
+                            ChildrenPrice = rate.ChildrenPrice,
+                            ChildrenPriceOnBeds = rate.ChildrenPriceOnBeds,
+                            AdultPriceOnBeds = rate.AdultPriceOnBeds
                         });
                     }
                 }
@@ -360,7 +362,7 @@ public class RateService
             if (adultRate == 0) continue; // Пропускаем если тариф для этого количества взрослых не задан
 
             // Базовый вариант без детей и младенцев
-            rates.Add(new RateInfo(adults, 0, 0, (int)adultRate, (long)adultRate, 0, 0));
+            rates.Add(new RateInfo(adults, 0, 0, (int)adultRate, (long)adultRate, 0, 0, 0, 0, 0));
 
             // Варианты с детьми
             if (allowChildren)
@@ -370,8 +372,10 @@ public class RateService
                     ulong childRate = childRates[children - 1];
                     if (childRate == 0) continue; // Пропускаем если тариф для детей не задан
 
-                    long totalAmount = (long)(adultRate + childRate);
-                    rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0));
+                    int childrenPrice = (int)(childRate * children);
+                    long totalAmount = (long)(adultRate + (ulong)childrenPrice);
+
+                    rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0, childrenPrice, 0, 0));
                 }
             }
 
@@ -383,31 +387,48 @@ public class RateService
                 foreach (var rate in existingRates)
                 {
                     // Вариант с одним младенцем
-                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 0));
+                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 0, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
 
                     // Вариант с одним младенцем и колыбелью
-                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 1));
+                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 1, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
                 }
             }
         }
 
-        // Дополнительные места (если есть)
-        if (extraBedCapacity > 0 && rateDetail.ExtraBed > 0)
+        if (extraBedCapacity > 0 && (rateDetail.ExtraBed > 0 || rateDetail.ExtraChild > 0))
         {
             var ratesWithExtra = new List<RateInfo>();
             foreach (var rate in rates)
             {
-                if (rate.Adults + rate.Children + rate.Babies < mainSeats + extraBedCapacity)
+                int totalGuests = rate.Adults + rate.Children;
+                if (totalGuests < mainSeats) continue; // Основные места еще не заполнены
+
+                int availableExtraBeds = mainSeats + extraBedCapacity - totalGuests;
+                if (availableExtraBeds <= 0) continue; // Нет мест для доп. размещения
+
+                for (int extraAdults = 0; extraAdults <= availableExtraBeds; extraAdults++)
                 {
-                    ratesWithExtra.Add(new RateInfo(
-                        rate.Adults,
-                        rate.Children,
-                        rate.Babies,
-                        rate.BasePrice,
-                        rate.Amount + (long)rateDetail.ExtraBed,
-                        1,
-                        rate.Cradle
-                    ));
+                    for (int extraChildren = 0; extraChildren <= availableExtraBeds - extraAdults; extraChildren++)
+                    {
+                        if (extraAdults == 0 && extraChildren == 0) continue; // Нужно минимум одно доп. место
+
+                        int extraBedPrice = (int)(rateDetail.ExtraBed * (ulong)extraAdults);
+                        int extraChildPrice = (int)(rateDetail.ExtraChild * (ulong)extraChildren);
+                        long totalAmount = rate.Amount + extraBedPrice + extraChildPrice;
+
+                        ratesWithExtra.Add(new RateInfo(
+                            (byte)(rate.Adults + extraAdults),
+                            (byte)(rate.Children + extraChildren),
+                            rate.Babies,
+                            rate.BasePrice,
+                            totalAmount,
+                            (byte)(rate.ExtraBed + extraAdults),
+                            rate.Cradle,
+                            rate.ChildrenPrice,
+                            extraChildPrice,
+                            extraBedPrice
+                        ));
+                    }
                 }
             }
             rates.AddRange(ratesWithExtra);
@@ -421,7 +442,7 @@ public class RateService
         var semaphore = new SemaphoreSlim(10);
         var tasks = new List<Task>();
         //var tableName = $"room_rates_{hotelId}_asu";
-        var tableName = $"room_rates_{hotelId}";
+        var tableName = $"room_rates_{hotelId}_asu";
 
         foreach (var chunk in rates.Chunk(chunkSize))
         {
