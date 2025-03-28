@@ -46,7 +46,7 @@ public class PmsService
         IDbContextFactory<DefaultContext> contextFactory)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _rabbitMQClient = rabbitMQClient; //?? throw new ArgumentNullException(nameof(rabbitMQClient));
+        _rabbitMQClient = rabbitMQClient ?? throw new ArgumentNullException(nameof(rabbitMQClient));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _openSearchClient = openSearchClient ?? throw new ArgumentNullException(nameof(openSearchClient));
         _settings = settings.Value ?? throw new ArgumentNullException(nameof(settings));
