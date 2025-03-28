@@ -421,7 +421,7 @@ public class RateService
         var semaphore = new SemaphoreSlim(10);
         var tasks = new List<Task>();
         //var tableName = $"room_rates_{hotelId}_asu";
-        var tableName = $"room_rates_{hotelId}";
+        var tableName = $"room_rates_{hotelId}_asu";
 
         foreach (var chunk in rates.Chunk(chunkSize))
         {
