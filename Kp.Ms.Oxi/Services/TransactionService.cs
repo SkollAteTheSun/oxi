@@ -33,6 +33,7 @@ public class TransactionService
         DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
         List<Transaction> transactions = await _context.Transactions
             .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
+            .Where(t => t.Received == false)
             .Where(t => t.Delivered == false)
             .Where(t => t.HotelCode == request.HotelCode && t.InterfaceName == request.InterfaceName)
             .OrderBy(t => t.Id)
@@ -113,6 +114,7 @@ public class TransactionService
         DateTimeOffset minus1Hour = new DateTimeOffset(DateTime.UtcNow.AddHours(-1));
         Transaction? transaction = await _context.Transactions
             .Where(t => t.Sended == false || (t.Sended && t.SendedAt < minus1Hour))
+            .Where(t => t.Received == false)
             .Where(t => t.Delivered == false)
             .Where(t => t.HotelCode == request.PropertyName)
             .OrderBy(t => t.Id)
