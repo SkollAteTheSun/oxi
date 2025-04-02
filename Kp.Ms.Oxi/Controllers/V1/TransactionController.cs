@@ -36,7 +36,6 @@ public class TransactionController : ControllerBase
     }
 
     [HttpPost("acknowledge")]
-    [AuthToken]
     [SwaggerOperation(Summary = "Подтверждение передачи транзакций в PMS")]
     public async Task<ActionResult<List<long>>> AcknowledgeTransaction([FromBody] List<long> request)
     {
