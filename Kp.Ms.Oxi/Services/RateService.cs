@@ -22,7 +22,7 @@ public class RateService
     private readonly BookingService _bookingService;
     private readonly int _chunkSize;
 
-    public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory, 
+    public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory,
                         XmlDeserializer xmlDeserializer, BookingService bookingService)
     {
         _configuration = configuration;
@@ -441,8 +441,8 @@ public class RateService
     {
         var semaphore = new SemaphoreSlim(10);
         var tasks = new List<Task>();
-        //var tableName = $"room_rates_{hotelId}_asu";
-        var tableName = $"room_rates_{hotelId}";
+        var tableName = $"room_rates_{hotelId}_asu";
+        // var tableName = $"room_rates_{hotelId}";
 
         foreach (var chunk in rates.Chunk(chunkSize))
         {
