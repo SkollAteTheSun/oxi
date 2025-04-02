@@ -1,5 +1,6 @@
 ﻿using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Opera;
+using Microsoft.OpenApi.Extensions;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -7,11 +8,13 @@ public class QuotaService
 {
     private readonly LogService _logService;
     private readonly BookingService _bookingService;
+    private readonly XmlDeserializer _xmlDeserializer;
 
-    public QuotaService(LogService logService, BookingService bookingService)
+    public QuotaService(LogService logService, BookingService bookingService, XmlDeserializer xmlDeserializer)
     {
         _logService = logService;
         _bookingService = bookingService;
+        _xmlDeserializer = xmlDeserializer;
     }
 
     public async Task<bool> UpdateRoomQuotasByRtavMessage(RtavMessage message)
@@ -30,7 +33,7 @@ public class QuotaService
             return true;
         }
 
-        var roomTypeDict = await GetBookingRoomTypes(message.HotelReference.HotelCode);
+        var roomTypeDict = await GetBookingRoomTypes(message.HotelReference.HotelCode);  
 
         foreach (var inventory in message.DailyInventories)
         {
@@ -42,12 +45,22 @@ public class QuotaService
                     continue;
                 }
 
+                long? amount = null;
+
+                if (roomType.QuotasFromAsu)
+                {
+                    var reservedKp = await _bookingService.GetReservedKpCount(roomType, inventory.Datum);
+                    amount = roomTypeInventory.Available + reservedKp;
+                }
+
                 var roomQuota = new BookingRoomQuota
                 {
                     HotelId = roomType.HotelId,
                     RoomTypeId = roomType.Id,
                     Date = inventory.Datum,
-                    AmountAsu = roomTypeInventory.Available
+                    Amount = amount,
+                    AmountAsu = roomTypeInventory.Available,
+                    ReservedAsu = roomTypeInventory?.Definite?.ResvCount ?? 0
                 };
 
                 roomQuotas.Add(roomQuota);
@@ -150,17 +163,18 @@ public class QuotaService
         }
     }
 
-    private async Task<Dictionary<string, BookingRoomType>> GetBookingRoomTypes(string hotelCode)
+    private async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
     {
         var hotel = await _bookingService.GetHotel(hotelCode);
         if (hotel == null)
         {
             _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
-            return new Dictionary<string, BookingRoomType>();
+            return new Dictionary<string, BookingRoomTypes>();
         }
 
         var roomTypes = await _bookingService.GetRoomTypes(hotel.Id);
 
         return roomTypes?.ToDictionary(key => key.HrsCode, value => value);
     }
+
 }

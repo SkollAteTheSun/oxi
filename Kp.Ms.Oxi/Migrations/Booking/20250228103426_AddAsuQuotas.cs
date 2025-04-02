@@ -8,6 +8,7 @@ namespace Kp.Ms.Oxi.Migrations.Booking
     public partial class AddAsuQuotas : Migration
     {
         /// <inheritdoc />
+        /// 
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<long>(

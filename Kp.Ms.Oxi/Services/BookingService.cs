@@ -1,40 +1,44 @@
 ﻿using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Microsoft.EntityFrameworkCore;
+using EFCore.BulkExtensions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Kp.Ms.Oxi.Interfaces;
 
 namespace Kp.Ms.Oxi.Services;
 
 public class BookingService
 {
+    private readonly IConfiguration _configuration;
     private readonly IDbContextFactory<BookingContext> _contextFactory;
+    private readonly IDynamicBookingContextFactory _contextDynamicFactory;
     private readonly LogService _logService;
+    private readonly int _chunkSize;
 
-    public BookingService(IDbContextFactory<BookingContext> contextFactory, LogService logService)
+    public BookingService(IConfiguration configuration, IDbContextFactory<BookingContext> contextFactory, IDynamicBookingContextFactory contextDynamicFactory, LogService logService)
     {
         _contextFactory = contextFactory;
+        _contextDynamicFactory = contextDynamicFactory;
         _logService = logService;
+        _chunkSize = configuration.GetValue<int?>("Processing:ChunkSize") ?? throw new ArgumentNullException("Processing");
     }
 
-    public async Task<List<BookingRoomType>> GetRoomTypes(ulong hotelId)
+    public async Task<ulong?> GetHotelId(string hotelCode)
     {
         using var context = _contextFactory.CreateDbContext();
-        var roomTypes = await context.RoomTypes
+        var hotelId = await context.Hotels
             .AsNoTracking()
-            .Where(rt => rt.HotelId == hotelId)
-            .Where(rt => !string.IsNullOrEmpty(rt.HrsCode))
-            .ToListAsync();
+            .Where(h => h.HrsCode == hotelCode)
+            .Select(h => (ulong?)h.Id)
+            .FirstOrDefaultAsync();
 
-        return roomTypes;
-    }
+        if (hotelId == null)
+        {
+            _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
+        }
 
-    public async Task<BookingRoomType> GetRoomType(ulong hotelId, string hrsCode)
-    {
-        using var context = _contextFactory.CreateDbContext();
-        var roomTypes = await context.RoomTypes
-            .AsNoTracking()
-            .FirstOrDefaultAsync(rt => rt.HotelId == hotelId && rt.HrsCode == hrsCode);
-
-        return roomTypes;
+        return hotelId;
     }
 
     public async Task<BookingHotel> GetHotel(string hotelCode)
@@ -51,6 +55,22 @@ public class BookingService
         }
 
         return hotel;
+    }
+
+    public async Task<int> GetReservedKpCount(BookingRoomTypes roomType, DateTime date)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var reserved = await context.Reservations
+            .Where(reservation => reservation.HotelId == roomType.HotelId)
+            .Where(reservation => reservation.RoomTypeId == roomType.Id)
+            .Where(reservation => reservation.DateIn <= date.Date)
+            .Where(reservation => reservation.DateOut > date.Date)
+            .Where(reservation => reservation.Status != BookingReservationStatuses.cancelled.ToString())
+            .Where(reservation => reservation.Status != BookingReservationStatuses.refund.ToString())
+            .Where(reservation => reservation.Status != BookingReservationStatuses.closed.ToString())
+            .CountAsync();
+
+        return reserved;
     }
 
     public async Task<List<BookingRoomQuota>> GetRoomQuotas(ulong hotelId, ulong roomTypeId, DateTime fromDate, DateTime toDate)
@@ -180,10 +200,13 @@ public class BookingService
 
                 if (existingQuota != null)
                 {
+                    existingQuota.Amount = quota.Amount != null ? quota.Amount : existingQuota.Amount;
                     existingQuota.AmountAsu = quota.AmountAsu;
+                    existingQuota.ReservedAsu = quota.ReservedAsu;
                 }
                 else
                 {
+                    quota.Amount = quota.Amount != null ? quota.Amount : 0;
                     existingQuotas.Add(quota);
                 }
             }
@@ -197,5 +220,118 @@ public class BookingService
             _logService.Log(LogLevel.Error, $"Error updating quotas: {ex.Message}");
             throw;
         }
+    }
+
+    public async Task<ulong?> GetRateId(string hrsCode, ulong hotelId)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var rateId = await context.Rates
+            .AsNoTracking()
+            .Where(r => r.HrsCode == hrsCode && r.HotelId == hotelId)
+            .Select(r => (ulong?)r.Id)
+            .FirstOrDefaultAsync();
+
+        if (rateId == null)
+        {
+            _logService.Log(LogLevel.Warning, $"Rate with HrsCode: {hrsCode} for hotel ID: {hotelId} not found");
+        }
+
+        return rateId;
+    }
+
+    public async Task UpdateRateDetails(List<BookingRoomRates> bookingRoomRates, string tableName)
+    {
+        await using var context = _contextDynamicFactory.Create(tableName);
+
+        try
+        {
+            var chunks = bookingRoomRates.Chunk(_chunkSize);
+
+            foreach (var chunk in chunks)
+            {
+                await context.BulkInsertOrUpdateAsync(chunk, config =>
+                    {
+                        config.SetSynchronizeFilter<BookingRoomRates>(r =>
+                            chunk.Select(c => new
+                            {
+                                c.HotelId,
+                                c.RoomTypeId,
+                                c.RateId,
+                                c.Date,
+                                c.Adults,
+                                c.Children,
+                                c.Babies,
+                                c.ExtraBed,
+                                c.Craddle
+                            }).Contains(new
+                            {
+                                r.HotelId,
+                                r.RoomTypeId,
+                                r.RateId,
+                                r.Date,
+                                r.Adults,
+                                r.Children,
+                                r.Babies,
+                                r.ExtraBed,
+                                r.Craddle
+                            })
+                        );
+                    });
+            }
+
+        }
+        catch(Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"Error updating rate details: {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task<BookingRoomTypes> GetRoomType(ulong hotelId, string hrsCode)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var roomTypes = await context.RoomTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(rt => rt.HotelId == hotelId && rt.HrsCode == hrsCode);
+
+        return roomTypes;
+    }
+
+    public async Task<List<BookingRoomTypes>> GetRoomTypes(ulong hotelId)
+    {
+        using var context = _contextFactory.CreateDbContext();
+        var roomTypes = await context.RoomTypes
+            .AsNoTracking()
+            .Where(rt => rt.HotelId == hotelId)
+            .Where(rt => !string.IsNullOrEmpty(rt.HrsCode))
+            .ToListAsync();
+
+        return roomTypes;
+    }
+
+    public async Task<Dictionary<string, ulong>> GetRoomTypesIdByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
+    {
+        using var context = _contextFactory.CreateDbContext();
+
+        var roomTypes = await context.RoomTypes
+            .AsNoTracking()
+            .Where(rt => rt.HotelId == hotelId)
+            .Where(rt => hrsCodes.Contains(rt.HrsCode))
+            .ToListAsync();
+
+        return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt.Id);
+    }
+
+    public async Task<Dictionary<string, BookingRoomTypes>> GetRoomTypesByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
+    {
+        using var context = _contextFactory.CreateDbContext();
+
+        var roomTypes = await context.RoomTypes
+            .AsNoTracking()
+            .Where(rt => rt.HotelId == hotelId)
+            .Where(rt => hrsCodes.Contains(rt.HrsCode))
+            .ToListAsync();
+
+        return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt);
     }
 }

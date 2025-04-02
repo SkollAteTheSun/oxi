@@ -12,6 +12,7 @@ using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Npgsql;
 using OpenSearch.Client;
+using System.Net.Mime;
 using System.Text;
 
 namespace Kp.Ms.Oxi.Services;
@@ -32,6 +33,7 @@ public class PmsService
     private const string ROUTING_PREFIX = "check-out-routing";
 
     private readonly IDictionary<string, string> _mindboxDefaultHeaders;
+    private readonly IDictionary<string, string> _bookingDefaultHeaders;
     private const string _authScheme = "Bearer";
     private const string _uniqueViolation = "23505";
 
@@ -54,13 +56,18 @@ public class PmsService
         {
             { HeaderNames.Authorization, $"{_authScheme} {_settings.Mindbox.Token}" }
         };
+
+        _bookingDefaultHeaders = new Dictionary<string, string>()
+        {
+            { "api_token", _settings.Booking.ApiToken }
+        };
+
         using (var context = _contextFactory.CreateDbContext())
         {
             _hotels = context
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
-        
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
     }
 
@@ -160,14 +167,22 @@ public class PmsService
                     var body = arg.Body.ToArray();
                     checkOut = JsonConvert.DeserializeObject<CheckOutInfo>(Encoding.UTF8.GetString(body));
 
-                    await SavingPipeline(checkOut, async () =>
+                    if (!_settings.IgnoreHotels.Contains(checkOut?.HotelCode))
                     { 
                         await SendToBooking(checkOut);
 
-                        await SendToShop(checkOut);
+                        await EditReservationStatusInShop(checkOut);
+
+                        await SendFullPaymentReceiptInShop(checkOut);
 
                         await SendToMindbox(checkOut);
-                    });
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"The hotel \"{checkOut?.HotelCode}\" was ignored.");
+                    }
+
+                    await SaveCheckOut(checkOut);
                 }
                 catch (Exception ex)
                 {
@@ -184,8 +199,15 @@ public class PmsService
         });
     }
 
-    private async ValueTask SavingPipeline(CheckOutInfo checkOut, Func<ValueTask> pipeline)
+    private async ValueTask SaveCheckOut(CheckOutInfo checkOut)
     {
+        var existsCheckOut = await GetCheckOut(checkOut);
+        if (existsCheckOut != null)
+        {
+            _logger.LogWarning($"The check-out \"{checkOut.HotelCode}:{checkOut.Id}\" already exists.");
+            return;
+        }
+
         using var context = await _contextFactory.CreateDbContextAsync();
 
         try
@@ -203,8 +225,6 @@ public class PmsService
                 .CheckOuts
                 .AddAsync(checkoutEntity);
 
-            await pipeline.Invoke();
-
             await context.SaveChangesAsync();
             await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
         }
@@ -219,7 +239,7 @@ public class PmsService
 
             var innerException = (PostgresException)ex.InnerException;
             if (innerException.SqlState != _uniqueViolation)
-            { 
+            {
                 throw ex;
             }
         }
@@ -228,6 +248,17 @@ public class PmsService
             await context.DisposeAsync();
             throw ex;
         }
+    }
+
+    private async ValueTask<CheckOut?> GetCheckOut(CheckOutInfo checkOut)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var existsCheckOut = await context
+            .CheckOuts
+            .FirstOrDefaultAsync(c => c.HotelCode == checkOut.HotelCode && c.PmsId == checkOut.Id);
+
+        return existsCheckOut;
     }
 
     private async ValueTask SendToBooking(CheckOutInfo checkOut)
@@ -241,14 +272,25 @@ public class PmsService
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Booking...");
 
+            var reservationId = checkOut?.BookingId?.Split("-")?.LastOrDefault();
+
+            if (string.IsNullOrWhiteSpace(reservationId))
+            {
+                _logger.LogWarning($"Invalid booking id for reservation: {checkOut.Id}");
+                return;
+            }
+
             var contract = new BookingContract()
             {
-                ReservationId = checkOut.ExternalId,
+                ReservationId = reservationId,
                 DateCheckOut = checkOut.CheckOutDate,
                 ApiToken = _settings.Booking.ApiToken
             };
 
-            var result = await _httpClient.PostAsync<BookingContract, object>(_settings.Booking.Url, contract);
+            var result = await _httpClient.PostAsync<BookingContract, object>(
+                _settings.Booking.Url,
+                contract,
+                headers: _bookingDefaultHeaders);
 
             await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToBooking);
 
@@ -260,30 +302,76 @@ public class PmsService
         }
     }
 
-    private async ValueTask SendToShop(CheckOutInfo checkOut)
+    private async ValueTask EditReservationStatusInShop(CheckOutInfo checkOut)
     {
         try
         {
-            if (!_settings.Shop.Enabled)
+            if (!_settings.ShopEditReservationStatus.Enabled)
+            {
+                return;
+            }
+
+            _logger.LogInformation($"Try edit status for reservation \"{checkOut.ExternalId}\" in Shop...");
+
+            var reservationId = checkOut?.BookingId?.Split("-")?.LastOrDefault();
+
+            if (string.IsNullOrWhiteSpace(reservationId))
+            {
+                _logger.LogWarning($"Invalid reservation id: {checkOut.Id}");
+                return;
+            }
+
+            var reservationContract = new ShopReservationContract()
+            {
+                Key = _settings.ShopEditReservationStatus.ApiKey,
+                Number = checkOut.BookingId,
+                Id = reservationId,
+                Status = ShopReservationStatus.finished.ToString()
+            };
+
+            var reservationResult = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.ShopEditReservationStatus.Url, reservationContract);
+
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.ReservationStatusEdited);
+
+            _logger.LogInformation($"Status for reservation \"{checkOut.ExternalId}\" in Shop edited successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while editing reservation status by check-out in Shop. {ex.Message}");
+        }
+    }
+
+    private async ValueTask SendFullPaymentReceiptInShop(CheckOutInfo checkOut)
+    {
+        try
+        {
+            if (!_settings.ShopFullPaymentReceipt.Enabled)
             {
                 return;
             }
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
 
-            var reservationId = checkOut.BookingId.Split("-").LastOrDefault();
+            var orderId = checkOut?.BookingId?.Split("-")?[1];
 
-            var contract = new ShopReservationContract()
+            if (string.IsNullOrWhiteSpace(orderId))
             {
-                Key = _settings.Shop.ApiKey,
-                Number = checkOut.BookingId,
-                Id = reservationId,
-                Status = ShopReservationStatus.finished.ToString()
+                _logger.LogWarning($"Invalid order id for reservation: {checkOut.Id}");
+                return;
+            }
+
+            var paymentReceiptContract = new ShopPaymentReceiptContract()
+            {
+                OrderId = orderId,
+                Secret = _settings.ShopFullPaymentReceipt.Secret,
             };
 
-            var result = await _httpClient.PostAsync<ShopReservationContract, object>(_settings.Shop.Url, contract);
+            var paymentReceiptResult = await _httpClient.PostAsync<ShopPaymentReceiptContract, object>(
+                _settings.ShopFullPaymentReceipt.Url,
+                paymentReceiptContract,
+                MediaTypeNames.Application.FormUrlEncoded);
 
-            await LogCheckOut(checkOut, CheckOutProcessingStatus.SendedToShop);
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.FullPaymentReceiptSended);
 
             _logger.LogInformation($"Data by reservation \"{checkOut.ExternalId}\" sent to Shop successfully.");
         }
@@ -303,6 +391,12 @@ public class PmsService
             }
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Mindbox...");
+
+            if (string.IsNullOrWhiteSpace(checkOut?.BookingId))
+            {
+                _logger.LogWarning($"Invalid booking id for reservation: {checkOut.Id}");
+                return;
+            }
 
             var contract = new MindboxContract()
             {
@@ -330,7 +424,8 @@ public class PmsService
     {
         try
         {
-            foreach (var email in _settings.Mail.Emails) {
+            foreach (var email in _settings.Mail.Emails)
+            {
                 var mail = new Mail()
                 {
                     ToEmail = email,
