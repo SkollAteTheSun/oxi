@@ -168,8 +168,8 @@ public class PmsService
                     var body = arg.Body.ToArray();
                     checkOut = JsonConvert.DeserializeObject<CheckOutInfo>(Encoding.UTF8.GetString(body));
 
-                    await SavingPipeline(checkOut, async () =>
-                    {
+                    if (!_settings.IgnoreHotels.Contains(checkOut?.HotelCode))
+                    { 
                         await SendToBooking(checkOut);
 
                         await EditReservationStatusInShop(checkOut);
@@ -177,7 +177,13 @@ public class PmsService
                         await SendFullPaymentReceiptInShop(checkOut);
 
                         await SendToMindbox(checkOut);
-                    });
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"The hotel \"{checkOut?.HotelCode}\" was ignored.");
+                    }
+
+                    await SaveCheckOut(checkOut);
                 }
                 catch (Exception ex)
                 {
@@ -194,8 +200,15 @@ public class PmsService
         });
     }
 
-    private async ValueTask SavingPipeline(CheckOutInfo checkOut, Func<ValueTask> pipeline)
+    private async ValueTask SaveCheckOut(CheckOutInfo checkOut)
     {
+        var existsCheckOut = await GetCheckOut(checkOut);
+        if (existsCheckOut != null)
+        {
+            _logger.LogWarning($"The check-out \"{checkOut.HotelCode}:{checkOut.Id}\" already exists.");
+            return;
+        }
+
         using var context = await _contextFactory.CreateDbContextAsync();
 
         try
@@ -212,8 +225,6 @@ public class PmsService
             await context
                 .CheckOuts
                 .AddAsync(checkoutEntity);
-
-            await pipeline.Invoke();
 
             await context.SaveChangesAsync();
             await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
@@ -238,6 +249,17 @@ public class PmsService
             await context.DisposeAsync();
             throw ex;
         }
+    }
+
+    private async ValueTask<CheckOut?> GetCheckOut(CheckOutInfo checkOut)
+    {
+        using var context = await _contextFactory.CreateDbContextAsync();
+        
+        var existsCheckOut = await context
+            .CheckOuts
+            .FirstOrDefaultAsync(c => c.HotelCode == checkOut.HotelCode && c.PmsId == checkOut.Id);
+
+        return existsCheckOut;
     }
 
     private async ValueTask SendToBooking(CheckOutInfo checkOut)
