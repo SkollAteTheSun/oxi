@@ -23,7 +23,7 @@ public class RateService
     private readonly int _chunkSizeV1;
     private readonly int _chunkSizeV2;
 
-    public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory, 
+    public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory,
                         XmlDeserializer xmlDeserializer, BookingService bookingService)
     {
         _configuration = configuration;
