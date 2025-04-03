@@ -14,14 +14,12 @@ public class BookingService
     private readonly IDbContextFactory<BookingContext> _contextFactory;
     private readonly IDynamicBookingContextFactory _contextDynamicFactory;
     private readonly LogService _logService;
-    private readonly int _chunkSize;
 
     public BookingService(IConfiguration configuration, IDbContextFactory<BookingContext> contextFactory, IDynamicBookingContextFactory contextDynamicFactory, LogService logService)
     {
         _contextFactory = contextFactory;
         _contextDynamicFactory = contextDynamicFactory;
         _logService = logService;
-        _chunkSize = configuration.GetValue<int?>("Processing:ChunkSize") ?? throw new ArgumentNullException("Processing");
     }
 
     public async Task<ulong?> GetHotelId(string hotelCode)
@@ -227,7 +225,7 @@ public class BookingService
         using var context = _contextFactory.CreateDbContext();
         var rateId = await context.Rates
             .AsNoTracking()
-            .Where(r => r.HrsCode == hrsCode && r.HotelId == hotelId)
+            .Where(r => r.HrsCode == hrsCode && r.HotelId == hotelId && r.DeletedAt == null)
             .Select(r => (ulong?)r.Id)
             .FirstOrDefaultAsync();
 
@@ -245,42 +243,61 @@ public class BookingService
 
         try
         {
-            var chunks = bookingRoomRates.Chunk(_chunkSize);
-
-            foreach (var chunk in chunks)
+            await context.BulkInsertOrUpdateAsync(bookingRoomRates, config =>
             {
-                await context.BulkInsertOrUpdateAsync(chunk, config =>
+                config.SetSynchronizeFilter<BookingRoomRates>(r =>
+                    bookingRoomRates.Select(c => new
                     {
-                        config.SetSynchronizeFilter<BookingRoomRates>(r =>
-                            chunk.Select(c => new
-                            {
-                                c.HotelId,
-                                c.RoomTypeId,
-                                c.RateId,
-                                c.Date,
-                                c.Adults,
-                                c.Children,
-                                c.Babies,
-                                c.ExtraBed,
-                                c.Craddle
-                            }).Contains(new
-                            {
-                                r.HotelId,
-                                r.RoomTypeId,
-                                r.RateId,
-                                r.Date,
-                                r.Adults,
-                                r.Children,
-                                r.Babies,
-                                r.ExtraBed,
-                                r.Craddle
-                            })
-                        );
-                    });
-            }
-
+                        c.HotelId,
+                        c.RoomTypeId,
+                        c.RateId,
+                        c.Date,
+                        c.Adults,
+                        c.Children,
+                        c.Babies,
+                        c.ExtraBed,
+                        c.Craddle
+                    }).Contains(new
+                    {
+                        r.HotelId,
+                        r.RoomTypeId,
+                        r.RateId,
+                        r.Date,
+                        r.Adults,
+                        r.Children,
+                        r.Babies,
+                        r.ExtraBed,
+                        r.Craddle
+                    })
+                );
+            });
         }
-        catch(Exception ex)
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, $"Error updating rate details: {ex.Message}");
+            throw;
+        }
+    }
+    public async Task UpdateRateDetailsV2(List<BookingRoomRates> bookingRoomRates, string tableName)
+    {
+        await using var context = _contextDynamicFactory.Create(tableName);
+
+        try
+        {
+            if (!bookingRoomRates.Any()) return;
+
+            var values = string.Join(",", bookingRoomRates.Select(c =>
+                $"({c.HotelId}, {c.RoomTypeId}, {c.RateId}, '{c.Date:yyyy-MM-dd}', {c.Adults}, {c.Children}, {c.Babies}, {c.ExtraBed}, {c.Craddle})"));
+
+            var deleteSql = $@"
+            DELETE FROM {tableName} 
+            WHERE (hotel_id, room_type_id, rate_id, date, adults, children, babies, extra_bed, craddle) IN ({values})";
+
+            await context.Database.ExecuteSqlRawAsync(deleteSql);
+
+            await context.BulkInsertAsync(bookingRoomRates);
+        }
+        catch (Exception ex)
         {
             _logService.Log(LogLevel.Error, $"Error updating rate details: {ex.Message}");
             throw;
@@ -334,4 +351,31 @@ public class BookingService
 
         return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt);
     }
+
+    public async Task<(ulong? HotelId, Dictionary<string, BookingRoomTypes> RoomTypes, ulong? RateId)> 
+        GetHotelDataAsync(string hotelCode, IEnumerable<string> roomTypeCodes, string rateCode)
+    {
+        using var context = _contextFactory.CreateDbContext();
+
+        var hotelId = await context.Hotels
+            .AsNoTracking()
+            .Where(h => h.HrsCode == hotelCode)
+            .Select(h => (ulong?)h.Id)
+            .FirstOrDefaultAsync();
+
+        var roomTypes = await context.RoomTypes
+            .AsNoTracking()
+            .Where(rt => rt.HotelId == hotelId)
+            .Where(rt => roomTypeCodes.Contains(rt.HrsCode))
+            .ToListAsync();
+
+        var rateId = await context.Rates
+            .AsNoTracking()
+            .Where(r => r.HrsCode == rateCode && r.HotelId == hotelId && r.DeletedAt == null)
+            .Select(r => (ulong?)r.Id)
+            .FirstOrDefaultAsync();
+
+        return (hotelId.Value, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateId.Value);
+    }
+
 }
