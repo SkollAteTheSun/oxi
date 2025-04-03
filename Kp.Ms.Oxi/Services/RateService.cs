@@ -475,28 +475,6 @@ public class RateService
            ? _bookingService.UpdateRateDetailsV2
            : _bookingService.UpdateRateDetails;
 
-        /*
-        foreach (var chunk in rates.Chunk(chunkSize))
-        {
-            await semaphore.WaitAsync();
-            tasks.Add(Task.Run(async () =>
-            {
-                try
-                {
-                    await updateRatesMethod(chunk.ToList(), tableName);
-                }
-                catch (Exception ex)
-                {
-                    _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            }));
-        }
-        */
-
         var chunks = rates.Chunk(chunkSize);
 
         await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = 10 }, async (chunk, _) =>
