@@ -205,6 +205,7 @@ public class PmsService
         if (existsCheckOut != null)
         {
             _logger.LogWarning($"The check-out \"{checkOut.HotelCode}:{checkOut.Id}\" already exists.");
+            await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
             return;
         }
 
@@ -450,9 +451,9 @@ public class PmsService
         {
             var result = await _openSearchClient.IndexAsync(new CheckOutLog()
             {
-                Id = checkOut.Id,
+                PmsId = checkOut.Id,
                 ExternalId = checkOut.ExternalId,
-                BookinglId = checkOut.BookingId,
+                BookingId = checkOut.BookingId,
                 CheckOutDate = checkOut.CheckOutDate,
                 HotelCode = checkOut.HotelCode,
                 Status = status.ToString(),
