@@ -20,7 +20,8 @@ public class RateService
     private readonly IDbContextFactory<BookingContext> _contextFactory;
     private readonly XmlDeserializer _xmlDeserializer;
     private readonly BookingService _bookingService;
-    private readonly int _chunkSize;
+    private readonly int _chunkSizeV1;
+    private readonly int _chunkSizeV2;
 
     public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory,
                         XmlDeserializer xmlDeserializer, BookingService bookingService)
@@ -30,7 +31,8 @@ public class RateService
         _contextFactory = contextFactory;
         _xmlDeserializer = xmlDeserializer;
         _bookingService = bookingService;
-        _chunkSize = configuration.GetValue<int?>("Processing:ChunkSize") ?? throw new ArgumentNullException("Processing");
+        _chunkSizeV1 = configuration.GetValue<int?>("Processing:ChunkSizeV1") ?? throw new ArgumentNullException("Processing");
+        _chunkSizeV2 = configuration.GetValue<int?>("Processing:ChunkSizeV2") ?? throw new ArgumentNullException("Processing");
     }
 
     public async Task<string> MakeRateSet(RateSetRequest request)
@@ -254,29 +256,54 @@ public class RateService
         return apiResponse;
     }
 
-    public async Task<bool> UpdateRatesByRateHeader(XmlDocument xml)
+    public async Task<bool> UpdateRatesByRateHeader(XmlDocument xml, int apiVersion)
     {
         var rateHeader = _xmlDeserializer.DeserializeXmlToMessage<RateHeader>(xml);
+
         if (rateHeader == null)
         {
             _logService.Log(LogLevel.Error, "Error processing RateHeader message.");
             return false;
         }
 
-        var hotelId = await _bookingService.GetHotelId(rateHeader.HotelCode);
-        if (!hotelId.HasValue)
+        ulong? hotelId = null;
+        ulong? rateId = null;
+        Dictionary<string, BookingRoomTypes>? roomTypeDict = new();
+
+        if (apiVersion == 1)
         {
-            _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
-            return false;
+            hotelId = await _bookingService.GetHotelId(rateHeader.HotelCode);
+            if (!hotelId.HasValue)
+            {
+                _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
+                return false;
+            }
+
+            roomTypeDict = await _bookingService.GetRoomTypesByHrsCodes(hotelId.Value, rateHeader.RoomTypeList);
+
+            rateId = await _bookingService.GetRateId(rateHeader.RateCode, hotelId.Value);
+            if (!rateId.HasValue)
+            {
+                _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
+                return false;
+            }
         }
-
-        var roomTypeDict = await _bookingService.GetRoomTypesByHrsCodes(hotelId.Value, rateHeader.RoomTypeList);
-
-        var rateId = await _bookingService.GetRateId(rateHeader.RateCode, hotelId.Value);
-        if (!rateId.HasValue)
+        else if (apiVersion == 2)
         {
-            _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
-            return false;
+
+            (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
+
+            if (!hotelId.HasValue)
+            {
+                _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
+                return false;
+            }
+
+            if (!rateId.HasValue)
+            {
+                _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
+                return false;
+            }
         }
 
         var ratesToUpdate = new List<BookingRoomRates>();
@@ -338,7 +365,8 @@ public class RateService
                 }
             }
         }
-        await ProcessChunksAsync(ratesToUpdate, _chunkSize, (long)hotelId);
+
+        await ProcessChunksAsync(ratesToUpdate, (long)hotelId, apiVersion);
         return true;
     }
 
@@ -437,33 +465,28 @@ public class RateService
         return rates;
     }
 
-    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, int chunkSize, long hotelId)
+    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId, int apiVersion)
     {
-        var semaphore = new SemaphoreSlim(10);
         var tasks = new List<Task>();
         var tableName = $"room_rates_{hotelId}_asu";
-        // var tableName = $"room_rates_{hotelId}";
+        var chunkSize = apiVersion == 2 ? _chunkSizeV2 : _chunkSizeV1;
 
-        foreach (var chunk in rates.Chunk(chunkSize))
+        Func<List<BookingRoomRates>, string, Task> updateRatesMethod = apiVersion == 2
+           ? _bookingService.UpdateRateDetailsV2
+           : _bookingService.UpdateRateDetails;
+
+        var chunks = rates.Chunk(chunkSize);
+
+        await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = 10 }, async (chunk, _) =>
         {
-            await semaphore.WaitAsync();
-            tasks.Add(Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await _bookingService.UpdateRateDetails(chunk.ToList(), tableName);
-                }
-                catch (Exception ex)
-                {
-                    _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            }));
-        }
-
-        await Task.WhenAll(tasks);
+                await updateRatesMethod(chunk.ToList(), tableName);
+            }
+            catch (Exception ex)
+            {
+                _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
+            }
+        });
     }
 }
