@@ -3,7 +3,7 @@ using Kp.Ms.Oxi.Models.Enums;
 
 namespace Kp.Ms.Oxi.Models.Request;
 
-public class InterfaceRequest
+public class InterfaceRequest // 2 поля touristTaxMapping + touristTaxValue оба необяхательные string
 {
     public InterfaceType Type { get; set; } = InterfaceType.Oxi;
 
@@ -21,6 +21,10 @@ public class InterfaceRequest
 
     [Required]
     public required string HotelCode { get; set; }
+
+    public string? TouristTaxMapping { get; set; }
+
+    public string? TouristTaxValue { get; set; }
 
     public string? TravelAgentName { get; set; }
 

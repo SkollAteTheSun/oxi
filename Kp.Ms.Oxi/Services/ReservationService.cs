@@ -517,9 +517,9 @@ public class ReservationService
                     {
                         Module = "RESERVATION",
                         PmsTableName = "RESERVATION_NAME",
-                        PmsColumnName = "UDFC35" // Resort fee
+                        PmsColumnName = string.IsNullOrEmpty(request.Interface.TouristTaxMapping) ? "UDFC35" : request.Interface.TouristTaxMapping // Resort fee
                     },
-                    UdfValue = "00"
+                    UdfValue = string.IsNullOrEmpty(request.Interface.TouristTaxValue) ? "00"  : request.Interface.TouristTaxValue
                 },
                 new Udf
                 {
