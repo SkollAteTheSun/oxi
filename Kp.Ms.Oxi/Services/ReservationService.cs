@@ -9,10 +9,12 @@ using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
+using Kp.Ms.Oxi.Models.Options;
 using Microsoft.AspNetCore.Http.Extensions;
 using Field = Kp.Ms.Oxi.Models.Fidelio.Field;
 using Profile = Kp.Ms.Oxi.Models.Opera.Profile;
 using TimeUnit = Kp.Ms.Oxi.Models.Opera.TimeUnit;
+using Microsoft.Extensions.Options;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -21,12 +23,14 @@ public class ReservationService
     private readonly IConfiguration _configuration;
     private readonly ILogger<ReservationService> _logger;
     private readonly DefaultContext _context;
+    private readonly ReservationTaxOptions _taxOptions;
 
-    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context)
+    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context, IOptions<ReservationTaxOptions> taxOptions)
     {
         _configuration = configuration;
         _logger = logger;
         _context = context;
+        _taxOptions = taxOptions.Value;
     }
 
     public async Task<string> Send(SendReservationRequest request)
@@ -517,9 +521,13 @@ public class ReservationService
                     {
                         Module = "RESERVATION",
                         PmsTableName = "RESERVATION_NAME",
-                        PmsColumnName = string.IsNullOrEmpty(request.Interface.TouristTaxMapping) ? "UDFC35" : request.Interface.TouristTaxMapping // Resort fee
+                        PmsColumnName = string.IsNullOrEmpty(request.Interface.TouristTaxMapping) 
+                        ? _taxOptions.TouristTaxMapping
+                        : request.Interface.TouristTaxMapping // Resort fee
                     },
-                    UdfValue = string.IsNullOrEmpty(request.Interface.TouristTaxValue) ? "00"  : request.Interface.TouristTaxValue
+                    UdfValue = string.IsNullOrEmpty(request.Interface.TouristTaxValue) 
+                    ? _taxOptions.TouristTaxValue 
+                    : request.Interface.TouristTaxValue
                 },
                 new Udf
                 {
