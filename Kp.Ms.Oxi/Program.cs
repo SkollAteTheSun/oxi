@@ -21,6 +21,12 @@ builder.Services.AddOptions<OpenSearchOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<ReservationTaxOptions>()
+    .Bind(builder.Configuration.GetSection(ReservationTaxOptions.Position))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 string? bookingConnectionString = builder.Configuration.GetConnectionString("Booking");
 if (string.IsNullOrEmpty(bookingConnectionString))
 {
