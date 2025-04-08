@@ -4,7 +4,7 @@ namespace Kp.Ms.Oxi.Models.Options;
 
 public class ReservationTaxOptions
 {
-    public const string Position = "ReservationTaxDefaults";
+    public const string Position = "ReservationTax";
 
     [Required(AllowEmptyStrings = false, ErrorMessage = "TouristTaxMapping must not be empty.")]
     public string TouristTaxMapping { get; set; }
