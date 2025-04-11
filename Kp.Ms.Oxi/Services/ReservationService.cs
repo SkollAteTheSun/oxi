@@ -404,7 +404,11 @@ public class ReservationService
                         }
                     ],
                     PreRegistered = 0,
-                    CommissionPaidTo = "N"
+                    CommissionPaidTo = "N",
+                    ReservationChildAges = request.Reservation.ChildrenAges.Select(childAge => new ReservationChildAge
+                    {
+                        ChildAge = childAge
+                    }).ToList()
                 }
             ],
             ResProfiles = MakeProfiles(request),
@@ -521,12 +525,12 @@ public class ReservationService
                     {
                         Module = "RESERVATION",
                         PmsTableName = "RESERVATION_NAME",
-                        PmsColumnName = string.IsNullOrEmpty(request.Interface.TouristTaxMapping) 
+                        PmsColumnName = string.IsNullOrEmpty(request.Interface.TouristTaxMapping)
                         ? _taxOptions.TouristTaxMapping
                         : request.Interface.TouristTaxMapping // Resort fee
                     },
-                    UdfValue = string.IsNullOrEmpty(request.Interface.TouristTaxValue) 
-                    ? _taxOptions.TouristTaxValue 
+                    UdfValue = string.IsNullOrEmpty(request.Interface.TouristTaxValue)
+                    ? _taxOptions.TouristTaxValue
                     : request.Interface.TouristTaxValue
                 },
                 new Udf

@@ -15,10 +15,10 @@ public class ResGuest
 
     [XmlElement("InHouseTimeSpan")]
     public required TimeUnit InHouseTimeSpan { get; set; }
-    
+
     [XmlElement("ArrivalTransport")]
     public required Transport ArrivalTransport { get; set; }
-    
+
     [XmlElement("DepartureTransport")]
     public required Transport DepartureTransport { get; set; }
 
@@ -43,4 +43,8 @@ public class ResGuest
 
     [XmlElement("commissionPaidTo")]
     public required string CommissionPaidTo { get; set; }
+
+    [XmlArray("ReservationChildAges")]
+    [XmlArrayItem("ReservationChildAge")]
+    public List<ReservationChildAge> ReservationChildAges { get; set; } = [];
 }
