@@ -81,6 +81,11 @@ public class HotelBuilder : IEntityTypeConfiguration<Hotel>
             {
                 Name="Апартаменты Курорта Красная Поляна",
                 Code="APART"
+            },
+            new Hotel
+            {
+                Name="Отель-замок Богатырь",
+                Code="BOGATYR"
             }
         ]);
     }
