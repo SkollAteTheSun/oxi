@@ -26,7 +26,7 @@ public class MessageController : ControllerBase
     {
         using StreamReader reader = new(Request.Body);
         string message = await reader.ReadToEndAsync();
-        await _messageService.Receive(message, messageReceiveRequest, apiVersion:1);
+        await _messageService.Receive(message, messageReceiveRequest);
         return Ok();
     }
 

@@ -62,6 +62,7 @@ public class PmsService
             { "api_token", _settings.Booking.ApiToken }
         };
 
+        /*
         using (var context = _contextFactory.CreateDbContext())
         {
             _hotels = context
@@ -70,6 +71,7 @@ public class PmsService
         }
 
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
+        */
     }
 
     public IEnumerable<Hotel> GetHotels()

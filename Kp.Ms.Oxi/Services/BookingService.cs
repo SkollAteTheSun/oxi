@@ -22,23 +22,6 @@ public class BookingService
         _logService = logService;
     }
 
-    public async Task<ulong?> GetHotelId(string hotelCode)
-    {
-        using var context = _contextFactory.CreateDbContext();
-        var hotelId = await context.Hotels
-            .AsNoTracking()
-            .Where(h => h.HrsCode == hotelCode)
-            .Select(h => (ulong?)h.Id)
-            .FirstOrDefaultAsync();
-
-        if (hotelId == null)
-        {
-            _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
-        }
-
-        return hotelId;
-    }
-
     public async Task<BookingHotel> GetHotel(string hotelCode)
     {
         using var context = _contextFactory.CreateDbContext();
@@ -220,65 +203,7 @@ public class BookingService
         }
     }
 
-    public async Task<ulong?> GetRateId(string hrsCode, ulong hotelId)
-    {
-        using var context = _contextFactory.CreateDbContext();
-        var rateId = await context.Rates
-            .AsNoTracking()
-            .Where(r => r.HrsCode == hrsCode && r.HotelId == hotelId && r.DeletedAt == null)
-            .Select(r => (ulong?)r.Id)
-            .FirstOrDefaultAsync();
-
-        if (rateId == null)
-        {
-            _logService.Log(LogLevel.Warning, $"Rate with HrsCode: {hrsCode} for hotel ID: {hotelId} not found");
-        }
-
-        return rateId;
-    }
-
     public async Task UpdateRateDetails(List<BookingRoomRates> bookingRoomRates, string tableName)
-    {
-        await using var context = _contextDynamicFactory.Create(tableName);
-
-        try
-        {
-            await context.BulkInsertOrUpdateAsync(bookingRoomRates, config =>
-            {
-                config.SetSynchronizeFilter<BookingRoomRates>(r =>
-                    bookingRoomRates.Select(c => new
-                    {
-                        c.HotelId,
-                        c.RoomTypeId,
-                        c.RateId,
-                        c.Date,
-                        c.Adults,
-                        c.Children,
-                        c.Babies,
-                        c.ExtraBed,
-                        c.Craddle
-                    }).Contains(new
-                    {
-                        r.HotelId,
-                        r.RoomTypeId,
-                        r.RateId,
-                        r.Date,
-                        r.Adults,
-                        r.Children,
-                        r.Babies,
-                        r.ExtraBed,
-                        r.Craddle
-                    })
-                );
-            });
-        }
-        catch (Exception ex)
-        {
-            _logService.Log(LogLevel.Error, $"Error updating rate details: {ex.Message}");
-            throw;
-        }
-    }
-    public async Task UpdateRateDetailsV2(List<BookingRoomRates> bookingRoomRates, string tableName)
     {
         await using var context = _contextDynamicFactory.Create(tableName);
 
@@ -326,33 +251,7 @@ public class BookingService
         return roomTypes;
     }
 
-    public async Task<Dictionary<string, ulong>> GetRoomTypesIdByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
-    {
-        using var context = _contextFactory.CreateDbContext();
-
-        var roomTypes = await context.RoomTypes
-            .AsNoTracking()
-            .Where(rt => rt.HotelId == hotelId)
-            .Where(rt => hrsCodes.Contains(rt.HrsCode))
-            .ToListAsync();
-
-        return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt.Id);
-    }
-
-    public async Task<Dictionary<string, BookingRoomTypes>> GetRoomTypesByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
-    {
-        using var context = _contextFactory.CreateDbContext();
-
-        var roomTypes = await context.RoomTypes
-            .AsNoTracking()
-            .Where(rt => rt.HotelId == hotelId)
-            .Where(rt => hrsCodes.Contains(rt.HrsCode))
-            .ToListAsync();
-
-        return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt);
-    }
-
-    public async Task<(ulong? HotelId, Dictionary<string, BookingRoomTypes> RoomTypes, ulong? RateId)> 
+    public async Task<(ulong? HotelId, Dictionary<string, BookingRoomTypes> RoomTypes, ulong? RateId)>
         GetHotelDataAsync(string hotelCode, IEnumerable<string> roomTypeCodes, string rateCode)
     {
         using var context = _contextFactory.CreateDbContext();
@@ -377,5 +276,4 @@ public class BookingService
 
         return (hotelId.Value, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateId.Value);
     }
-
 }
