@@ -17,7 +17,7 @@ namespace Kp.Ms.Oxi.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.6")
+                .HasAnnotation("ProductVersion", "8.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -105,73 +105,80 @@ namespace Kp.Ms.Oxi.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("aea5d99c-8ff1-448a-baf6-0a2efe36f127"),
+                            Id = new Guid("c6e75554-3536-41ad-b18d-b78ec2d9dcc7"),
                             Code = "RIXOS",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Риксос Красная Поляна Сочи"
                         },
                         new
                         {
-                            Id = new Guid("d10f490d-a62b-4396-8d10-b41addbe035b"),
+                            Id = new Guid("0d837a0c-1194-496e-8441-e0e358195aea"),
                             Code = "AERMC",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Сочи Марриотт Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("4af397f8-ade2-472c-bade-1e08dc05e6df"),
+                            Id = new Guid("c2dcc2a2-5687-41ac-a575-d8ef011f25d5"),
                             Code = "HB769",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Новотель Фит Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("d4fde7b7-cb39-4ab3-b207-dcfb028b4919"),
+                            Id = new Guid("c7bb375d-7b1a-4400-9bf2-1587154240d1"),
                             Code = "HB530",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Новотель Резорт и спа Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("60355e46-5a2d-4772-ac1b-fa014403893e"),
+                            Id = new Guid("27f5dd1c-e184-4e7d-85aa-8729b11ca15b"),
                             Code = "HB755",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Мовенпик Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("3cc43174-9a92-4765-84cc-62a760eaa91e"),
+                            Id = new Guid("61b40a77-a376-4532-89ea-b3d5fb8d4179"),
                             Code = "SCODL",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Долина 960"
                         },
                         new
                         {
-                            Id = new Guid("94d2d5e0-c6ac-4756-9b47-e335173422a5"),
+                            Id = new Guid("ae353229-2164-4f92-a84b-8d7cde48bbd7"),
                             Code = "HB754",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Ибис Стайлс Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("8304dc32-6580-44e2-80eb-8b4cb168051f"),
+                            Id = new Guid("a07c1481-7241-4463-97e8-ba883b808b1b"),
                             Code = "HB933",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Панорама by Mercure Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("a8645454-a521-46e8-a740-0c0d3f3da685"),
+                            Id = new Guid("a856c274-dafa-40e1-aecd-954498e546b9"),
                             Code = "AERCS",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Кортъярд Марриотт Сочи Красная Поляна"
                         },
                         new
                         {
-                            Id = new Guid("f8722c54-e89e-47e6-be47-a2767a953f46"),
+                            Id = new Guid("e156c5b5-73c9-4514-aefd-aea12befea47"),
                             Code = "APART",
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "Апартаменты Курорта Красная Поляна"
+                        },
+                        new
+                        {
+                            Id = new Guid("4b511975-cef2-4e39-a3ba-95469a450591"),
+                            Code = "BOGATYR",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "Отель-замок Богатырь"
                         });
                 });
 
