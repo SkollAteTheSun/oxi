@@ -22,6 +22,10 @@ public class InterfaceRequest
     [Required]
     public required string HotelCode { get; set; }
 
+    public string? TouristTaxMapping { get; set; }
+
+    public string? TouristTaxValue { get; set; }
+
     public string? TravelAgentName { get; set; }
 
     public int? TravelAgentId { get; set; }

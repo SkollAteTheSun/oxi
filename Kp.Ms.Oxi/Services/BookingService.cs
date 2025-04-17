@@ -14,31 +14,12 @@ public class BookingService
     private readonly IDbContextFactory<BookingContext> _contextFactory;
     private readonly IDynamicBookingContextFactory _contextDynamicFactory;
     private readonly LogService _logService;
-    private readonly int _chunkSize;
 
     public BookingService(IConfiguration configuration, IDbContextFactory<BookingContext> contextFactory, IDynamicBookingContextFactory contextDynamicFactory, LogService logService)
     {
         _contextFactory = contextFactory;
         _contextDynamicFactory = contextDynamicFactory;
         _logService = logService;
-        _chunkSize = configuration.GetValue<int?>("Processing:ChunkSize") ?? throw new ArgumentNullException("Processing");
-    }
-
-    public async Task<ulong?> GetHotelId(string hotelCode)
-    {
-        using var context = _contextFactory.CreateDbContext();
-        var hotelId = await context.Hotels
-            .AsNoTracking()
-            .Where(h => h.HrsCode == hotelCode)
-            .Select(h => (ulong?)h.Id)
-            .FirstOrDefaultAsync();
-
-        if (hotelId == null)
-        {
-            _logService.Log(LogLevel.Warning, $"Hotel with code: {hotelCode} not found in database.");
-        }
-
-        return hotelId;
     }
 
     public async Task<BookingHotel> GetHotel(string hotelCode)
@@ -222,65 +203,26 @@ public class BookingService
         }
     }
 
-    public async Task<ulong?> GetRateId(string hrsCode, ulong hotelId)
-    {
-        using var context = _contextFactory.CreateDbContext();
-        var rateId = await context.Rates
-            .AsNoTracking()
-            .Where(r => r.HrsCode == hrsCode && r.HotelId == hotelId)
-            .Select(r => (ulong?)r.Id)
-            .FirstOrDefaultAsync();
-
-        if (rateId == null)
-        {
-            _logService.Log(LogLevel.Warning, $"Rate with HrsCode: {hrsCode} for hotel ID: {hotelId} not found");
-        }
-
-        return rateId;
-    }
-
     public async Task UpdateRateDetails(List<BookingRoomRates> bookingRoomRates, string tableName)
     {
         await using var context = _contextDynamicFactory.Create(tableName);
 
         try
         {
-            var chunks = bookingRoomRates.Chunk(_chunkSize);
+            if (!bookingRoomRates.Any()) return;
 
-            foreach (var chunk in chunks)
-            {
-                await context.BulkInsertOrUpdateAsync(chunk, config =>
-                    {
-                        config.SetSynchronizeFilter<BookingRoomRates>(r =>
-                            chunk.Select(c => new
-                            {
-                                c.HotelId,
-                                c.RoomTypeId,
-                                c.RateId,
-                                c.Date,
-                                c.Adults,
-                                c.Children,
-                                c.Babies,
-                                c.ExtraBed,
-                                c.Craddle
-                            }).Contains(new
-                            {
-                                r.HotelId,
-                                r.RoomTypeId,
-                                r.RateId,
-                                r.Date,
-                                r.Adults,
-                                r.Children,
-                                r.Babies,
-                                r.ExtraBed,
-                                r.Craddle
-                            })
-                        );
-                    });
-            }
+            var values = string.Join(",", bookingRoomRates.Select(c =>
+                $"({c.HotelId}, {c.RoomTypeId}, {c.RateId}, '{c.Date:yyyy-MM-dd}', {c.Adults}, {c.Children}, {c.Babies}, {c.ExtraBed}, {c.Craddle})"));
 
+            var deleteSql = $@"
+            DELETE FROM {tableName} 
+            WHERE (hotel_id, room_type_id, rate_id, date, adults, children, babies, extra_bed, craddle) IN ({values})";
+
+            await context.Database.ExecuteSqlRawAsync(deleteSql);
+
+            await context.BulkInsertAsync(bookingRoomRates);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             _logService.Log(LogLevel.Error, $"Error updating rate details: {ex.Message}");
             throw;
@@ -309,29 +251,29 @@ public class BookingService
         return roomTypes;
     }
 
-    public async Task<Dictionary<string, ulong>> GetRoomTypesIdByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
+    public async Task<(ulong? HotelId, Dictionary<string, BookingRoomTypes> RoomTypes, ulong? RateId)>
+        GetHotelDataAsync(string hotelCode, IEnumerable<string> roomTypeCodes, string rateCode)
     {
         using var context = _contextFactory.CreateDbContext();
+
+        var hotelId = await context.Hotels
+            .AsNoTracking()
+            .Where(h => h.HrsCode == hotelCode)
+            .Select(h => (ulong?)h.Id)
+            .FirstOrDefaultAsync();
 
         var roomTypes = await context.RoomTypes
             .AsNoTracking()
             .Where(rt => rt.HotelId == hotelId)
-            .Where(rt => hrsCodes.Contains(rt.HrsCode))
+            .Where(rt => roomTypeCodes.Contains(rt.HrsCode))
             .ToListAsync();
 
-        return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt.Id);
-    }
-
-    public async Task<Dictionary<string, BookingRoomTypes>> GetRoomTypesByHrsCodes(ulong hotelId, IEnumerable<string> hrsCodes)
-    {
-        using var context = _contextFactory.CreateDbContext();
-
-        var roomTypes = await context.RoomTypes
+        var rateId = await context.Rates
             .AsNoTracking()
-            .Where(rt => rt.HotelId == hotelId)
-            .Where(rt => hrsCodes.Contains(rt.HrsCode))
-            .ToListAsync();
+            .Where(r => r.HrsCode == rateCode && r.HotelId == hotelId && r.DeletedAt == null)
+            .Select(r => (ulong?)r.Id)
+            .FirstOrDefaultAsync();
 
-        return roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt);
+        return (hotelId.Value, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateId.Value);
     }
 }

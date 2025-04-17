@@ -96,7 +96,7 @@ public class MessageService
 
         if (root.Name == nameof(RateHeader) && root.NamespaceURI.Contains("rate.fidelio"))
         {
-           return await _rateService.UpdateRatesByRateHeader(xml);
+            return await _rateService.UpdateRatesByRateHeader(xml);
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))

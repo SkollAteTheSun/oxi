@@ -257,22 +257,25 @@ public class RateService
     public async Task<bool> UpdateRatesByRateHeader(XmlDocument xml)
     {
         var rateHeader = _xmlDeserializer.DeserializeXmlToMessage<RateHeader>(xml);
+
         if (rateHeader == null)
         {
             _logService.Log(LogLevel.Error, "Error processing RateHeader message.");
             return false;
         }
 
-        var hotelId = await _bookingService.GetHotelId(rateHeader.HotelCode);
+        ulong? hotelId = null;
+        ulong? rateId = null;
+        Dictionary<string, BookingRoomTypes>? roomTypeDict = new();
+
+        (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
+
         if (!hotelId.HasValue)
         {
             _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
             return false;
         }
 
-        var roomTypeDict = await _bookingService.GetRoomTypesByHrsCodes(hotelId.Value, rateHeader.RoomTypeList);
-
-        var rateId = await _bookingService.GetRateId(rateHeader.RateCode, hotelId.Value);
         if (!rateId.HasValue)
         {
             _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
@@ -338,7 +341,8 @@ public class RateService
                 }
             }
         }
-        await ProcessChunksAsync(ratesToUpdate, _chunkSize, (long)hotelId);
+
+        await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
         return true;
     }
 
@@ -437,33 +441,23 @@ public class RateService
         return rates;
     }
 
-    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, int chunkSize, long hotelId)
+    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId)
     {
-        var semaphore = new SemaphoreSlim(10);
         var tasks = new List<Task>();
         var tableName = $"room_rates_{hotelId}_asu";
-        // var tableName = $"room_rates_{hotelId}";
 
-        foreach (var chunk in rates.Chunk(chunkSize))
+        var chunks = rates.Chunk(_chunkSize);
+
+        await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = 10 }, async (chunk, _) =>
         {
-            await semaphore.WaitAsync();
-            tasks.Add(Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await _bookingService.UpdateRateDetails(chunk.ToList(), tableName);
-                }
-                catch (Exception ex)
-                {
-                    _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            }));
-        }
-
-        await Task.WhenAll(tasks);
+                await _bookingService.UpdateRateDetails(chunk.ToList(), tableName);
+            }
+            catch (Exception ex)
+            {
+                _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
+            }
+        });
     }
 }
