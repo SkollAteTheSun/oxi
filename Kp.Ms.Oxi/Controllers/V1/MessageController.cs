@@ -11,11 +11,13 @@ namespace Kp.Ms.Oxi.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
 [SwaggerTag("Сообщения от внешних систем")]
-public class MessageController : ControllerBase
+public class MessageController : BaseController
 {
     private readonly MessageService _messageService;
 
-    public MessageController(MessageService messageService)
+    public MessageController(
+        ILogger<MessageController> logger,
+        MessageService messageService) : base(logger)
     {
         _messageService = messageService;
     }
