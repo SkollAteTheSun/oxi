@@ -46,7 +46,7 @@ public class MessageService
         _bookingService = bookingService;
     }
 
-    public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest, int apiVersion)
+    public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
     {
         JsonSerializerOptions jso = new JsonSerializerOptions
         {
@@ -96,7 +96,7 @@ public class MessageService
 
         if (root.Name == nameof(RateHeader) && root.NamespaceURI.Contains("rate.fidelio"))
         {
-            return await _rateService.UpdateRatesByRateHeader(xml, apiVersion);
+            return await _rateService.UpdateRatesByRateHeader(xml);
         }
 
         if (string.IsNullOrEmpty(xml.LastChild?.PreviousSibling?.Value))

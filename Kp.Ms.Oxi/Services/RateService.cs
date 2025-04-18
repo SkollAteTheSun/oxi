@@ -20,8 +20,7 @@ public class RateService
     private readonly IDbContextFactory<BookingContext> _contextFactory;
     private readonly XmlDeserializer _xmlDeserializer;
     private readonly BookingService _bookingService;
-    private readonly int _chunkSizeV1;
-    private readonly int _chunkSizeV2;
+    private readonly int _chunkSize;
 
     public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory,
                         XmlDeserializer xmlDeserializer, BookingService bookingService)
@@ -31,8 +30,7 @@ public class RateService
         _contextFactory = contextFactory;
         _xmlDeserializer = xmlDeserializer;
         _bookingService = bookingService;
-        _chunkSizeV1 = configuration.GetValue<int?>("Processing:ChunkSizeV1") ?? throw new ArgumentNullException("Processing");
-        _chunkSizeV2 = configuration.GetValue<int?>("Processing:ChunkSizeV2") ?? throw new ArgumentNullException("Processing");
+        _chunkSize = configuration.GetValue<int?>("Processing:ChunkSize") ?? throw new ArgumentNullException("Processing");
     }
 
     public async Task<string> MakeRateSet(RateSetRequest request)
@@ -256,7 +254,7 @@ public class RateService
         return apiResponse;
     }
 
-    public async Task<bool> UpdateRatesByRateHeader(XmlDocument xml, int apiVersion)
+    public async Task<bool> UpdateRatesByRateHeader(XmlDocument xml)
     {
         var rateHeader = _xmlDeserializer.DeserializeXmlToMessage<RateHeader>(xml);
 
@@ -270,40 +268,18 @@ public class RateService
         ulong? rateId = null;
         Dictionary<string, BookingRoomTypes>? roomTypeDict = new();
 
-        if (apiVersion == 1)
+        (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
+
+        if (!hotelId.HasValue)
         {
-            hotelId = await _bookingService.GetHotelId(rateHeader.HotelCode);
-            if (!hotelId.HasValue)
-            {
-                _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
-                return false;
-            }
-
-            roomTypeDict = await _bookingService.GetRoomTypesByHrsCodes(hotelId.Value, rateHeader.RoomTypeList);
-
-            rateId = await _bookingService.GetRateId(rateHeader.RateCode, hotelId.Value);
-            if (!rateId.HasValue)
-            {
-                _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
-                return false;
-            }
+            _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
+            return false;
         }
-        else if (apiVersion == 2)
+
+        if (!rateId.HasValue)
         {
-
-            (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
-
-            if (!hotelId.HasValue)
-            {
-                _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
-                return false;
-            }
-
-            if (!rateId.HasValue)
-            {
-                _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
-                return false;
-            }
+            _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
+            return false;
         }
 
         var ratesToUpdate = new List<BookingRoomRates>();
@@ -366,7 +342,7 @@ public class RateService
             }
         }
 
-        await ProcessChunksAsync(ratesToUpdate, (long)hotelId, apiVersion);
+        await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
         return true;
     }
 
@@ -465,23 +441,18 @@ public class RateService
         return rates;
     }
 
-    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId, int apiVersion)
+    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId)
     {
         var tasks = new List<Task>();
         var tableName = $"room_rates_{hotelId}_asu";
-        var chunkSize = apiVersion == 2 ? _chunkSizeV2 : _chunkSizeV1;
 
-        Func<List<BookingRoomRates>, string, Task> updateRatesMethod = apiVersion == 2
-           ? _bookingService.UpdateRateDetailsV2
-           : _bookingService.UpdateRateDetails;
-
-        var chunks = rates.Chunk(chunkSize);
+        var chunks = rates.Chunk(_chunkSize);
 
         await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = 10 }, async (chunk, _) =>
         {
             try
             {
-                await updateRatesMethod(chunk.ToList(), tableName);
+                await _bookingService.UpdateRateDetails(chunk.ToList(), tableName);
             }
             catch (Exception ex)
             {
