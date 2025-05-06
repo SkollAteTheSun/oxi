@@ -24,7 +24,7 @@ public class RoomStay
 
     [XmlElement("TimeSpan")]
     public required TimeUnit TimeSpan { get; set; }
-    
+
     [XmlArray("GuestCounts")]
     [XmlArrayItem("GuestCount")]
     public List<GuestCount> GuestCounts { get; set; } = [];
@@ -32,7 +32,7 @@ public class RoomStay
     [XmlArray("RatePlans")]
     [XmlArrayItem("RatePlan")]
     public List<RatePlan> RatePlans { get; set; } = [];
-    
+
     [XmlElement("resGuestRPHs")]
     public int? resGuestRPHs { get; set; }
 
@@ -42,7 +42,7 @@ public class RoomStay
     [XmlArray("PaymentInstructions")]
     [XmlArrayItem("PaymentInstruction")]
     public List<PaymentInstruction> PaymentInstructions { get; set; } = [];
-    
+
     [XmlElement("mfsourceCode")]
     public required string mfsourceCode { get; set; }
 
@@ -51,7 +51,11 @@ public class RoomStay
 
     [XmlElement("mfchannelCode")]
     public string? mfchannelCode { get; set; }
-    
+
     [XmlElement("mfconfidentialRate")]
     public int? mfconfidentialRate { get; set; }
+
+    [XmlArray("InventoryItems")]
+    [XmlArrayItem("InventoryItem")]
+    public List<InventoryItem> InventoryItems { get; set; } = [];
 }

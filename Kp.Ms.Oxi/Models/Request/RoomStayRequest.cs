@@ -15,7 +15,7 @@ public class RoomStayRequest
 
     [Required]
     public List<RoomStayRateRequest> Rates { get; set; } = [];
-    
+
     [Required]
     public double Amount { get; set; }
 }
