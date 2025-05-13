@@ -88,8 +88,6 @@ public class LogService
                 labelParts = label.Split('|');
             }
 
-            string jsonMessage = JsonConvert.SerializeXmlNode(xml, Newtonsoft.Json.Formatting.Indented);
-
             _openSearchClient.Index(new
             {
                 date = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss"),
