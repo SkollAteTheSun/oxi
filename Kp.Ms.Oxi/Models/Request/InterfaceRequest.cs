@@ -43,4 +43,6 @@ public class InterfaceRequest
     public InterfaceAuthRequest? Auth { get; set; }
 
     public string? ChannelCode { get; set; }
+
+    public string? ExtraBedInventoryCode { get; set; }
 }
