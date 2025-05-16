@@ -495,12 +495,12 @@ public class ReservationService
                     marketSegmentCode = request.Reservation.RoomStay.MarketCode,
                     mfchannelCode = "P",
                     mfconfidentialRate = 0,
-                    InventoryItems = request.Reservation.ExtraBed > 0
+                    InventoryItems = request.Reservation.ExtraBed > 0 && !string.IsNullOrEmpty(request.Interface.ExtraBedInventoryCode)
                         ? [
                             new InventoryItem
                             {
                                 Type = "Housekeeping",
-                                Item = request.Interface.ExtraBedInventoryCode ?? throw new Exception("Extra bed inventory code is empty"),
+                                Item = request.Interface.ExtraBedInventoryCode,
                                 Quantity = 1,
                                 BeginDate = DateOnly.FromDateTime(request.Reservation.DateIn).ToString("yyyy-MM-dd"),
                                 EndDate = DateOnly.FromDateTime(request.Reservation.DateOut).ToString("yyyy-MM-dd"),
