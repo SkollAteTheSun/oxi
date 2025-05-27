@@ -47,4 +47,6 @@ public class ReservationRequest
     public float PaymentAmount { get; set; }
 
     public string? Comment { get; set; }
+
+    public int? ExtraBed { get; set; }
 }

@@ -494,29 +494,37 @@ public class ReservationService
                     mfsourceCode = request.Reservation.RoomStay.SourceCode,
                     marketSegmentCode = request.Reservation.RoomStay.MarketCode,
                     mfchannelCode = "P",
-                    mfconfidentialRate = 0
+                    mfconfidentialRate = 0,
+                    InventoryItems = request.Reservation.ExtraBed > 0 && !string.IsNullOrEmpty(request.Interface.ExtraBedInventoryCode)
+                        ? [
+                            new InventoryItem
+                            {
+                                Type = "Housekeeping",
+                                Item = request.Interface.ExtraBedInventoryCode,
+                                Quantity = 1,
+                                BeginDate = DateOnly.FromDateTime(request.Reservation.DateIn).ToString("yyyy-MM-dd"),
+                                EndDate = DateOnly.FromDateTime(request.Reservation.DateOut).ToString("yyyy-MM-dd"),
+                                BeginDateTime = new DateTime(
+                                    request.Reservation.DateIn.Year,
+                                    request.Reservation.DateIn.Month,
+                                    request.Reservation.DateIn.Day,
+                                    0,
+                                    0,
+                                    0
+                                ),
+                                EndDateTime = new DateTime(
+                                    request.Reservation.DateOut.Year,
+                                    request.Reservation.DateOut.Month,
+                                    request.Reservation.DateOut.Day,
+                                    23,
+                                    59,
+                                    59
+                                )
+                            }
+                        ]
+                        : []
                 }
             ],
-
-            /*
-             * Module = "RESERVATION" PmsTableName = "RESERVATION_NAME"
-             * "UDFC35" // Resort fee
-             * "UDFC33" // GDS Record Loc.
-             * "UDFC30" // Ref Dossier
-             * "UDFC22" // Розовая плашка под Source
-             * "UDFC16" // Auto Code
-             * "UDFC15" // PAY ID
-             * "UDFC14" // Payment Type
-             * "UDFC13" // Currency
-             * "UDFC12" // Alias
-             * "UDFC10" // TARS Tariff Name
-             * "UDFC09" // TARS Tariff Code
-             * "UDFC06" // Telephone
-             * "UDFC05" // Reserve Par
-             * "UDFC04" // Voucher #
-             * "UDFC02" // Par
-             * "UDFC01" // Raison RTC
-             */
             Udfs =
             [
                 new Udf
