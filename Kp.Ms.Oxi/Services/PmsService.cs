@@ -354,7 +354,7 @@ public class PmsService
 
             _logger.LogInformation($"Try send data by reservation \"{checkOut.ExternalId}\" to Shop...");
 
-            var orderId = checkOut?.BookingId?.Split("-")?[1];
+            var orderId = checkOut?.BookingId?.Split("-")?.ElementAtOrDefault(1);
 
             if (string.IsNullOrWhiteSpace(orderId))
             {
