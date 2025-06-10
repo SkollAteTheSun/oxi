@@ -74,6 +74,10 @@ public class LogService
 
     public void LogRawOperaMessage(LogLevel logLevel, string rawXml)
     {
+
+        if (!_openSearchOptions.EnableRawMessagesLogging)
+            return;
+
         try
         {
             _logger.Log(logLevel, "{Message}", rawXml);

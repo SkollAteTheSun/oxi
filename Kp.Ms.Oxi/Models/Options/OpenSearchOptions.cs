@@ -23,4 +23,6 @@ public class OpenSearchOptions
 
     [Required]
     public required string LogIndexOperaRawMessages { get; set; }
+
+    public bool EnableRawMessagesLogging { get; set; } = false;
 }
