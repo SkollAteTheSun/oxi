@@ -443,8 +443,9 @@ public class RateService
 
     private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId)
     {
-        var tasks = new List<Task>();
-        var tableName = $"room_rates_{hotelId}_asu";
+        bool fromAsu = !string.IsNullOrEmpty(_configuration["Opera:Rate:FromAsu"]) && Convert.ToBoolean(_configuration["Opera:Rate:FromAsu"]);
+
+        var tableName = fromAsu ? $"room_rates_{hotelId}" : $"room_rates_{hotelId}_asu";
 
         var chunks = rates.Chunk(_chunkSize);
 
