@@ -274,6 +274,6 @@ public class BookingService
             .Select(r => (ulong?)r.Id)
             .FirstOrDefaultAsync();
 
-        return (hotelId.Value, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateId.Value);
+        return (hotelId, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateId);
     }
 }
