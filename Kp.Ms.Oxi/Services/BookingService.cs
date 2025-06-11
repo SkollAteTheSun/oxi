@@ -207,6 +207,16 @@ public class BookingService
     {
         _logService.Log(LogLevel.Information, $"Вызван метод UpdateRateDetails");
 
+        if (bookingRoomRates.Any())
+        {
+            var firstRatesLog = string.Join("\n", bookingRoomRates
+                .Take(10)
+                .Select(r => $"HotelId: {r.HotelId}, RoomTypeId: {r.RoomTypeId}, RateId: {r.RateId}, Date: {r.Date:yyyy-MM-dd}, Adults: {r.Adults}, Children: {r.Children}, Babies: {r.Babies}, ExtraBed: {r.ExtraBed}, Craddle: {r.Craddle}")
+            );
+
+            _logService.Log(LogLevel.Debug, $"Первые 10 тарифов:\n{firstRatesLog}");
+        }
+
         await using var context = _contextDynamicFactory.Create(tableName);
 
         try
@@ -226,7 +236,7 @@ public class BookingService
         }
         catch (Exception ex)
         {
-            _logService.Log(LogLevel.Error, $"Error updating rate details: {ex.Message}");
+            _logService.Log(LogLevel.Error, $"Ошибка обновления данных в UpdateRateDetails: {ex.Message}");
             throw;
         }
     }

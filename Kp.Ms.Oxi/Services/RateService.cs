@@ -467,7 +467,7 @@ public class RateService
             }
             catch (Exception ex)
             {
-                _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
+                _logService.Log(LogLevel.Error, $"Не удалось обновить chunk: {ex.Message}");
             }
         });
     }
