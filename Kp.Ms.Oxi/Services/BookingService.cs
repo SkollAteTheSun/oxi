@@ -205,6 +205,8 @@ public class BookingService
 
     public async Task UpdateRateDetails(List<BookingRoomRates> bookingRoomRates, string tableName)
     {
+        _logService.Log(LogLevel.Information, $"Вызван метод UpdateRateDetails");
+
         await using var context = _contextDynamicFactory.Create(tableName);
 
         try
