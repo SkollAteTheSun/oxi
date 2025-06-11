@@ -211,7 +211,7 @@ public class BookingService
         {
             var firstRatesLog = string.Join("\n", bookingRoomRates
                 .Take(10)
-                .Select(r => $"HotelId: {r.HotelId}, RoomTypeId: {r.RoomTypeId}, RateId: {r.RateId}, Date: {r.Date:yyyy-MM-dd}, Adults: {r.Adults}, Children: {r.Children}, Babies: {r.Babies}, ExtraBed: {r.ExtraBed}, Craddle: {r.Craddle}")
+                .Select(r => $"HotelId: {r.HotelId}, RoomTypeId: {r.RoomTypeId}, RateId: {r.RateId}, Date: {r.Date:yyyy-MM-dd}, Adults: {r.Adults}, Children: {r.Children}, Babies: {r.Babies}, ExtraBed: {r.ExtraBed}, Craddle: {r.Craddle}, Amount: {r.Amount}, BasePrice: {r.BasePrice}, ChildrenPrice: {r.ChildrenPrice}, AdultPriceOnBeds: {r.AdultPriceOnBeds}")
             );
 
             _logService.Log(LogLevel.Debug, $"Первые 10 тарифов:\n{firstRatesLog}");
