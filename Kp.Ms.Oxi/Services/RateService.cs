@@ -272,7 +272,8 @@ public class RateService
 
         (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
 
-        _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: roomTypeDict={roomTypeDict}");
+        var lines = roomTypeDict.Select(kvp => $"{kvp.Key}:{kvp.Value}");
+        _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: roomTypeDict={string.Join(Environment.NewLine, lines)}");
 
         if (!hotelId.HasValue)
         {
