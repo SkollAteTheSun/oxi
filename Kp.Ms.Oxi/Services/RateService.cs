@@ -256,11 +256,13 @@ public class RateService
 
     public async Task<bool> UpdateRatesByRateHeader(XmlDocument xml)
     {
+        _logService.Log(LogLevel.Information, $"Вызван метод UpdateRatesByRateHeader");
+
         var rateHeader = _xmlDeserializer.DeserializeXmlToMessage<RateHeader>(xml);
 
         if (rateHeader == null)
         {
-            _logService.Log(LogLevel.Error, "Error processing RateHeader message.");
+            _logService.Log(LogLevel.Error, "Ошибка обработки сообщения RateHeader.");
             return false;
         }
 
@@ -272,15 +274,18 @@ public class RateService
 
         if (!hotelId.HasValue)
         {
-            _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} not found in database");
+            _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} не найден в базе данных");
             return false;
         }
 
         if (!rateId.HasValue)
         {
-            _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} not found in database for hotelID: {hotelId.Value}.");
+            _logService.Log(LogLevel.Warning, $"Rate: {rateHeader.RateCode} не найден в базе данных для hotelID: {hotelId.Value}.");
             return false;
         }
+
+        var roomTypeCodes = string.Join(", ", roomTypeDict?.Keys ?? Enumerable.Empty<string>());
+        _logService.Log( LogLevel.Information, $"Данные из GetHotelDataAsync: HotelId={hotelId}, RateId={rateId}, RoomTypes: {roomTypeCodes}");
 
         var ratesToUpdate = new List<BookingRoomRates>();
 
@@ -288,13 +293,13 @@ public class RateService
         {
             if (!DateOnly.TryParse(rateDetail.DateStart, out var startDate))
             {
-                _logService.Log(LogLevel.Error, $"Invalid start date: {rateDetail.DateStart}");
+                _logService.Log(LogLevel.Error, $"Неверная дата начала: {rateDetail.DateStart}");
                 continue;
             }
 
             if (!DateOnly.TryParse(rateDetail.DateEnd, out var endDate))
             {
-                _logService.Log(LogLevel.Error, $"Invalid end date: {rateDetail.DateEnd}");
+                _logService.Log(LogLevel.Error, $"Неверная дата окончания: {rateDetail.DateEnd}");
                 continue;
             }
 
@@ -304,6 +309,9 @@ public class RateService
                 dates.Add(date);
             }
 
+            var dateListString = string.Join(", ", dates);
+            _logService.Log(LogLevel.Debug, $"Сгенерированные даты: {dateListString}");
+
             foreach (var date in dates)
             {
                 foreach (var roomTypeCode in rateDetail.RoomTypes)
@@ -311,7 +319,7 @@ public class RateService
                     //по каждому коду roomType, который нашли в базе
                     if (!roomTypeDict.TryGetValue(roomTypeCode, out var roomType))
                     {
-                        _logService.Log(LogLevel.Warning, $"Room type {roomTypeCode} not found in database for hotelID: {hotelId.Value}.");
+                        _logService.Log(LogLevel.Warning, $"Room type {roomTypeCode} не найден в базе данных для hotelID: {hotelId.Value}.");
                         continue;
                     }
 
@@ -443,6 +451,8 @@ public class RateService
 
     private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId)
     {
+        _logService.Log(LogLevel.Information, $"Вызван метод ProcessChunksAsync");
+
         bool fromAsu = !string.IsNullOrEmpty(_configuration["Opera:Rate:FromAsu"]) && Convert.ToBoolean(_configuration["Opera:Rate:FromAsu"]);
 
         var tableName = fromAsu ? $"room_rates_{hotelId}" : $"room_rates_{hotelId}_asu";
@@ -457,7 +467,7 @@ public class RateService
             }
             catch (Exception ex)
             {
-                _logService.Log(LogLevel.Error, $"Failed to update chunk: {ex.Message}");
+                _logService.Log(LogLevel.Error, $"Не удалось обновить chunk: {ex.Message}");
             }
         });
     }
