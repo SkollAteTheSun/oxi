@@ -241,6 +241,28 @@ public class BookingService
         }
     }
 
+    //новый метод delete
+    public async Task DeleteRateDetailsAsync(ulong hotelId, IEnumerable<BookingRoomTypes> roomTypes, ulong rateId, List<DateOnly> dates, string tableName)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        if (dates.Count == 0)
+            return;
+
+        if (!roomTypes.Any() || dates.Count == 0)
+            return;
+
+        var roomTypeIds = roomTypes.Select(rt => rt.Id).Distinct().ToList();
+        var roomTypeConditions = string.Join(",", roomTypeIds);
+        var dateConditions = string.Join(",", dates.Distinct().Select(d => $"'{d:yyyy-MM-dd}'"));
+
+        var sql = $@"
+        DELETE FROM {tableName} 
+        WHERE hotel_id = {hotelId} AND room_type_id IN ({roomTypeConditions}) AND rate_id = {rateId} AND date IN ({dateConditions})";
+
+        await context.Database.ExecuteSqlRawAsync(sql);
+    }
+
     public async Task<BookingRoomTypes> GetRoomType(ulong hotelId, string hrsCode)
     {
         using var context = _contextFactory.CreateDbContext();
