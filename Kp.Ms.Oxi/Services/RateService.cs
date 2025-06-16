@@ -272,6 +272,8 @@ public class RateService
 
         (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
 
+        _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: roomTypeDict={roomTypeDict}");
+
         if (!hotelId.HasValue)
         {
             _logService.Log(LogLevel.Warning, $"Hotel: {rateHeader.HotelCode} не найден в базе данных");
