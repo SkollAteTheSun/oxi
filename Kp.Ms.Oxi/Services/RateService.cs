@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Serialization;
@@ -259,6 +260,12 @@ public class RateService
         _logService.Log(LogLevel.Information, $"Вызван метод UpdateRatesByRateHeader");
 
         var rateHeader = _xmlDeserializer.DeserializeXmlToMessage<RateHeader>(xml);
+
+        JsonSerializerOptions jso = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        _logService.Log(LogLevel.Information, $"rateHeader object: \n{JsonSerializer.Serialize(rateHeader, jso)}");
 
         if (rateHeader == null)
         {
