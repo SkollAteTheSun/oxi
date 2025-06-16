@@ -382,6 +382,7 @@ public class RateService
 
         ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0, rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
         ulong[] childRates = { rateDetail.Child1RateOwnRoom ?? 0, rateDetail.Child2RateOwnRoom ?? 0, rateDetail.Child3RateOwnRoom ?? 0, rateDetail.Child4RateOwnRoom ?? 0 };
+        ulong?[] childRatesBogatyr = { rateDetail.Child1RateParentRoom, rateDetail.Child2RateParentRoom, rateDetail.Child3RateParentRoom };
 
         // Основные места для взрослых
         for (byte adults = 1; adults <= adultRates.Length; adults++)
@@ -395,30 +396,64 @@ public class RateService
             // Варианты с детьми
             if (allowChildren)
             {
-                for (byte children = 1; children <= childRates.Length && adults + children <= mainSeats; children++)
+                // Есть хотя бы одно значение заданно и больше 0 -> пришли тарифы Богатыря
+                if ((childRatesBogatyr.Any(rate => rate.HasValue && rate.Value > 0)))
                 {
-                    ulong childRate = childRates[children - 1];
-                    if (childRate == 0) continue; // Пропускаем если тариф для детей не задан
+                    for (byte children = 1; adults + children <= mainSeats; children++)
+                    {
+                        ulong childRate = childRatesBogatyr[2] ?? 0; // это возраст 7-11
+                        if (childRate == 0) continue; // Пропускаем если тариф для детей не задан
 
-                    int childrenPrice = (int)(childRate * children);
-                    long totalAmount = (long)(adultRate + (ulong)childrenPrice);
+                        int childrenPrice = (int)(childRate * children);
+                        long totalAmount = (long)(adultRate + (ulong)childrenPrice);
 
-                    rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0, childrenPrice, 0, 0));
+                        rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0, childrenPrice, 0, 0));
+                    }
+
+                    // Варианты с младенцами (добавляем к каждому существующему варианту для этого количества взрослых)
+                    if (allowBabies)
+                    {
+                        // Создаем копии существующих вариантов с младенцами
+                        var existingRates = rates.Where(r => r.Adults == adults && r.Babies == 0).ToList();
+                        long babyPrice = (long)(childRatesBogatyr[1] ?? 0);
+
+                        foreach (var rate in existingRates)
+                        {
+                            // Вариант с одним младенцем
+                            rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount + babyPrice, 0, 0, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
+
+                            // Вариант с одним младенцем и колыбелью
+                            rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount + babyPrice, 0, 1, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
+                        }
+                    }
                 }
-            }
-
-            // Варианты с младенцами (добавляем к каждому существующему варианту для этого количества взрослых)
-            if (allowBabies)
-            {
-                // Создаем копии существующих вариантов с младенцами
-                var existingRates = rates.Where(r => r.Adults == adults && r.Babies == 0).ToList();
-                foreach (var rate in existingRates)
+                else // если не Богатырь
                 {
-                    // Вариант с одним младенцем
-                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 0, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
+                    for (byte children = 1; children <= childRates.Length && adults + children <= mainSeats; children++)
+                    {
+                        ulong childRate = childRates[children - 1];
+                        if (childRate == 0) continue; // Пропускаем если тариф для детей не задан
 
-                    // Вариант с одним младенцем и колыбелью
-                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 1, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
+                        int childrenPrice = (int)(childRate * children);
+                        long totalAmount = (long)(adultRate + (ulong)childrenPrice);
+
+                        rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0, childrenPrice, 0, 0));
+                    }
+
+                    // Варианты с младенцами (добавляем к каждому существующему варианту для этого количества взрослых)
+                    if (allowBabies)
+                    {
+                        // Создаем копии существующих вариантов с младенцами
+                        var existingRates = rates.Where(r => r.Adults == adults && r.Babies == 0).ToList();
+                        foreach (var rate in existingRates)
+                        {
+                            // Вариант с одним младенцем
+                            rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 0, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
+
+                            // Вариант с одним младенцем и колыбелью
+                            rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount, 0, 1, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
+                        }
+                    }
                 }
             }
         }
