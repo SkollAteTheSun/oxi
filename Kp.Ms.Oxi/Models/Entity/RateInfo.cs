@@ -9,7 +9,6 @@ public class RateInfo
     public long Amount { get; set; }
     public byte ExtraBed { get; set; }
     public byte Cradle { get; set; }
-    //public int BabyPrice { get; set; }
     public int ChildrenPrice { get; set; }
     public int ChildrenPriceOnBeds { get; set; }
     public int AdultPriceOnBeds { get; set; }
@@ -24,7 +23,6 @@ public class RateInfo
         Amount = amount;
         ExtraBed = extraBed;
         Cradle = cradle;
-        //BabyPrice = babyPrice;
         ChildrenPrice = childrenPrice;
         ChildrenPriceOnBeds = childrenPriceOnBeds;
         AdultPriceOnBeds = adultPriceOnBeds;
