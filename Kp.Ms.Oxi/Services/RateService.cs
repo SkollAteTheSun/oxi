@@ -368,11 +368,9 @@ public class RateService
         }
 
         var tableName = GetRateTableName((long)hotelId);
-
-        //пока не тестил
-        //await _bookingService.DeleteRateDetailsAsync(hotelId.Value, roomTypeDict.Values, rateId.Value, dates, tableName);
-
+        await _bookingService.DeleteRateDetailsAsync(hotelId.Value, roomTypeDict.Values, rateId.Value, dates, tableName);
         await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
+
         return true;
     }
 
