@@ -276,8 +276,14 @@ public class RateService
         ulong? hotelId = null;
         ulong? rateId = null;
         Dictionary<string, BookingRoomTypes>? roomTypeDict = new();
+        List<string> roomTypes = [];
+        foreach (var rateDetail in rateHeader.RateDetails.RateDetail)
+        {
+            roomTypes.AddRange(rateDetail.RoomTypes);
+        }
+        _logService.Log(LogLevel.Information, $"категории номеров из xml: {roomTypes}");
 
-        (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, rateHeader.RoomTypeList, rateHeader.RateCode);
+        (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, roomTypes, rateHeader.RateCode);
 
         var lines = roomTypeDict.Select(kvp => $"{kvp.Key}:{kvp.Value}");
         _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: roomTypeDict={string.Join(Environment.NewLine, lines)}");
