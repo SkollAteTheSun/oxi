@@ -61,13 +61,15 @@ public class PmsService
         {
             { "api_token", _settings.Booking.ApiToken }
         };
-
+        
+        /*
         using (var context = _contextFactory.CreateDbContext())
         {
             _hotels = context
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
+        */
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
     }
 

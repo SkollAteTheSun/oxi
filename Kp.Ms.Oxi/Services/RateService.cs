@@ -479,6 +479,18 @@ public class RateService
                 // максимум взрослых по тарифам
                 int maxAdultTariff = adultRates.Select((r, i) => r > 0 ? i + 1 : 0).Max();
 
+                int maxBaseAdultSeats = 0;
+                ulong maxBaseRate = 0;
+
+                for (int i = 0; i < adultRates.Length; i++)
+                {
+                    if (adultRates[i] > maxBaseRate)
+                    {
+                        maxBaseRate = adultRates[i];
+                        maxBaseAdultSeats = i + 1;
+                    }
+                }
+
                 foreach (var rate in rates)
                 {
                     int totalGuests = rate.Adults + rate.Children + rate.Babies;
@@ -508,14 +520,16 @@ public class RateService
                                 int babyPrice = (int)(childRatesInParentRoom[1] ?? 0);
                                 int extraBabiesPrice = babyPrice * extraBabies;
 
+                                //поробывать взять base.Price в зависимости от кол.врослых
+                                long totalAmount = (long)maxBaseRate + extraAdultPrice + extraChildPrice + extraBabiesPrice;
                                 // Общая цена
-                                long totalAmount = rate.Amount + extraAdultPrice + extraChildPrice + extraBabiesPrice;
+                                //long totalAmount = rate.Amount + extraAdultPrice + extraChildPrice + extraBabiesPrice;
 
                                 // Кол-во доп. мест занятое суммарно
                                 byte usedExtraBeds = (byte)(rate.ExtraBed + extraAdults + extraChildren + extraBabies);
 
                                 ratesWithExtra.Add(new RateInfo(
-                                    (byte)(rate.Adults + extraAdults),
+                                    (byte)(maxBaseAdultSeats + extraAdults),
                                     (byte)(rate.Children + extraChildren),
                                     (byte)(rate.Babies + extraBabies),
                                     rate.BasePrice,
