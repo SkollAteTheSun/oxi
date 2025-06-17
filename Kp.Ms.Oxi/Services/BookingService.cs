@@ -222,16 +222,6 @@ public class BookingService
         try
         {
             if (!bookingRoomRates.Any()) return;
-
-            var values = string.Join(",", bookingRoomRates.Select(c =>
-                $"({c.HotelId}, {c.RoomTypeId}, {c.RateId}, '{c.Date:yyyy-MM-dd}', {c.Adults}, {c.Children}, {c.Babies}, {c.ExtraBed}, {c.Craddle})"));
-
-            var deleteSql = $@"
-            DELETE FROM {tableName} 
-            WHERE (hotel_id, room_type_id, rate_id, date, adults, children, babies, extra_bed, craddle) IN ({values})";
-
-            await context.Database.ExecuteSqlRawAsync(deleteSql);
-
             await context.BulkInsertAsync(bookingRoomRates);
         }
         catch (Exception ex)
@@ -239,6 +229,24 @@ public class BookingService
             _logService.Log(LogLevel.Error, $"Ошибка обновления данных в UpdateRateDetails: {ex.Message}");
             throw;
         }
+    }
+
+    public async Task DeleteRateDetailsAsync(ulong hotelId, IEnumerable<BookingRoomTypes> roomTypes, ulong rateId, List<DateOnly> dates, string tableName)
+    {
+        await using var context = _contextDynamicFactory.Create(tableName);
+
+        if (!roomTypes.Any() || dates.Count == 0)
+            return;
+
+        var roomTypeIds = roomTypes.Select(rt => rt.Id).Distinct().ToList();
+        var roomTypeConditions = string.Join(",", roomTypeIds);
+        var dateConditions = string.Join(",", dates.Distinct().Select(d => $"'{d:yyyy-MM-dd}'"));
+
+        var sql = $@"
+        DELETE FROM {tableName} 
+        WHERE hotel_id = {hotelId} AND room_type_id IN ({roomTypeConditions}) AND rate_id = {rateId} AND date IN ({dateConditions})";
+
+        await context.Database.ExecuteSqlRawAsync(sql);
     }
 
     public async Task<BookingRoomTypes> GetRoomType(ulong hotelId, string hrsCode)
