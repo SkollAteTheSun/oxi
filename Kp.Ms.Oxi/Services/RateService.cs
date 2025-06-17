@@ -572,7 +572,7 @@ public class RateService
 
         var chunks = rates.Chunk(_chunkSize);
 
-        await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = 10 }, async (chunk, _) =>
+        foreach (var chunk in chunks)
         {
             try
             {
@@ -582,7 +582,7 @@ public class RateService
             {
                 _logService.Log(LogLevel.Error, $"Не удалось обновить chunk: {ex.Message}");
             }
-        });
+        }
     }
 
     private string GetRateTableName(long hotelId)
