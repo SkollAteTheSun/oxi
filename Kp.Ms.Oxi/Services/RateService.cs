@@ -340,7 +340,19 @@ public class RateService
                         continue;
                     }
 
-                    var rates = GenerateRates(rateDetail, roomType);
+                    var rates = new List<RateInfo>();
+
+                    ulong?[] childRatesInParentRoom = { rateDetail.Child1RateParentRoom, rateDetail.Child2RateParentRoom, rateDetail.Child3RateParentRoom };
+                    bool hasChildRatesInParentRoom = childRatesInParentRoom.Any(rate => rate.HasValue && rate.Value > 0);
+
+                    if (hasChildRatesInParentRoom)
+                    {
+                        rates = GenerateRatesFromParentRoom(rateDetail, roomType);
+                    }
+                    else
+                    {
+                        rates = GenerateRates(rateDetail, roomType);
+                    }
 
                     foreach (var rate in rates)
                     {
@@ -386,7 +398,6 @@ public class RateService
 
         ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0, rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
         ulong[] childRates = { rateDetail.Child1RateOwnRoom ?? 0, rateDetail.Child2RateOwnRoom ?? 0, rateDetail.Child3RateOwnRoom ?? 0, rateDetail.Child4RateOwnRoom ?? 0 };
-        ulong?[] childRatesInParentRoom = { rateDetail.Child1RateParentRoom, rateDetail.Child2RateParentRoom, rateDetail.Child3RateParentRoom };
 
         // Основные места для взрослых
         for (byte adults = 1; adults <= adultRates.Length; adults++)
@@ -400,42 +411,6 @@ public class RateService
             // Варианты с детьми
             if (allowChildren)
             {
-                // Есть хотя бы одно значение заданно и больше 0 -> пришли тарифы в поля ParentRoom
-                if ((childRatesInParentRoom.Any(rate => rate.HasValue && rate.Value > 0)))
-                {
-                    for (byte children = 1; adults + children <= mainSeats; children++)
-                    {
-                        ulong childRate = childRatesInParentRoom[2] ?? 0; // это возраст 7-11
-                        if (childRate == 0) break; // тариф не задан, выходим из цикла
-
-                        int childrenPrice = (int)(childRate);
-                        long totalAmount = (long)(adultRate + (ulong)childrenPrice * children); //???
-
-                        rates.Add(new RateInfo(adults, children, 0, (int)adultRate, totalAmount, 0, 0, childrenPrice, 0, 0));
-                    }
-
-                    // Варианты с младенцами (добавляем к каждому существующему варианту для этого количества взрослых)
-                    if (allowBabies)
-                    {
-                        var existingRates = rates.ToList();
-                        long babyPrice = (long)(childRatesInParentRoom[1] ?? 0);
-
-                        foreach (var rate in existingRates)
-                        {
-                            for (byte babies = 1; adults + rate.Children + babies <= mainSeats; babies++)
-                            {
-                                    // Вариант с одним младенцем
-                                    rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount + babyPrice, 0, 0, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
-
-                                    // Вариант с одним младенцем и колыбелью
-                                    //rates.Add(new RateInfo(rate.Adults, rate.Children, 1, rate.BasePrice, rate.Amount + babyPrice, 0, 1, rate.ChildrenPrice, rate.ChildrenPriceOnBeds, rate.AdultPriceOnBeds));
-
-                            }
-                        }
-                    }
-                }
-                else // если значения пришли в RateOwnRoom
-                {
                     for (byte children = 1; children <= childRates.Length && adults + children <= mainSeats; children++)
                     {
                         ulong childRate = childRates[children - 1];
@@ -451,7 +426,6 @@ public class RateService
                     if (allowBabies)
                     {
                         var existingRates = rates.ToList();
-                        long babyPrice = (long)(childRatesInParentRoom[1] ?? 0);
 
                         foreach (var rate in existingRates)
                         {
@@ -466,74 +440,12 @@ public class RateService
                             }
                         }
                     }
-                }
             }
         }
 
         if (extraBedCapacity > 0 && (rateDetail.ExtraBed > 0 || rateDetail.ExtraChild > 0))
         {
-            var ratesWithExtra = new List<RateInfo>();
- 
-            if ((childRatesInParentRoom.Any(rate => rate.HasValue && rate.Value > 0))) // нет extraChildren, селим всех на extraAdults
-            {
-                // максимум взрослых по тарифам
-                int maxAdultTariff = adultRates.Select((r, i) => r > 0 ? i + 1 : 0).Max();
-
-                foreach (var rate in rates)
-                {
-                    int totalGuests = rate.Adults + rate.Children + rate.Babies;
-                    if (totalGuests < mainSeats) continue; // Основные места еще не заполнены
-
-                    int availableExtraBeds = mainSeats + extraBedCapacity - totalGuests;
-                    if (availableExtraBeds <= 0) continue; // Нет мест для доп. размещения
-
-                    for (int extraAdults = 0; extraAdults <= availableExtraBeds; extraAdults++)
-                    {
-                        int totalAdults = rate.Adults + extraAdults;
-                        if (extraAdults > 0 && totalAdults <= maxAdultTariff)
-                            continue;
-
-                        for (int extraChildren = 0; extraChildren <= availableExtraBeds - extraAdults; extraChildren++)
-                        {
-                            for (int extraBabies = 0; extraBabies <= availableExtraBeds - extraAdults - extraChildren; extraBabies++)
-                            {
-                                if (extraAdults + extraChildren + extraBabies == 0) continue;
-
-                                // Стоимость взрослых на доп. месте
-                                int extraAdultPrice = (int)(rateDetail.ExtraBed * (ulong)extraAdults);
-                                // Стоимость детей
-                                int childPrice = (int)(childRatesInParentRoom[2] ?? 0);
-                                int extraChildPrice = childPrice * extraChildren;
-                                // Стоимость младенцев
-                                int babyPrice = (int)(childRatesInParentRoom[1] ?? 0);
-                                int extraBabiesPrice = babyPrice * extraBabies;
-
-                                // Общая цена
-                                long totalAmount = rate.Amount + extraAdultPrice + extraChildPrice + extraBabiesPrice;
-
-                                // Кол-во доп. мест занятое суммарно
-                                byte usedExtraBeds = (byte)(rate.ExtraBed + extraAdults + extraChildren + extraBabies);
-
-                                ratesWithExtra.Add(new RateInfo(
-                                    (byte)(rate.Adults + extraAdults),
-                                    (byte)(rate.Children + extraChildren),
-                                    (byte)(rate.Babies + extraBabies),
-                                    rate.BasePrice,
-                                    totalAmount,
-                                    usedExtraBeds,
-                                    rate.Cradle,
-                                    rate.ChildrenPrice,
-                                    extraChildPrice,
-                                    extraAdultPrice
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-            
-            else // есть extraChildren, должны селить детей туда
-            {
+            var ratesWithExtra = new List<RateInfo>();           
                 foreach (var rate in rates)
                 {
                     int totalGuests = rate.Adults + rate.Children + rate.Babies;
@@ -567,10 +479,86 @@ public class RateService
                         }
                     }
                 }
-            }
             rates.AddRange(ratesWithExtra);
         }
 
+        return rates;
+    }
+
+
+    private List<RateInfo> GenerateRatesFromParentRoom(RateDetail rateDetail, BookingRoomTypes roomType)
+    {
+        var rates = new List<RateInfo>();
+        bool allowChildren = !roomType.NotAvailForChildren;
+        bool allowBabies = !roomType.NotAvailForBaby;
+        int mainSeats = roomType.CountMainSeat;
+        int extraBedCapacity = roomType.ExtraBedCapacity ?? 0;
+        int maxGuests = mainSeats + extraBedCapacity;
+
+        ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0,
+                          rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
+
+        // Определяем максимальное количество взрослых
+        int maxAdultTariff = 0;
+        for (int i = 0; i < adultRates.Length; i++)
+        {
+            if (adultRates[i] > 0) maxAdultTariff = i + 1;
+        }
+        if (maxAdultTariff == 0) return rates;
+
+        // Тарифы для детей/младенцев
+        ulong childRate = rateDetail.Child3RateParentRoom ?? 0;
+        ulong babyRate = rateDetail.Child2RateParentRoom ?? 0;
+        ulong extraBedPrice = rateDetail.ExtraBed;
+
+        // Перебор всех возможных комбинаций гостей
+        for (byte adults = 1; adults <= maxGuests; adults++)
+        {
+            // Расчет размещения взрослых
+            int adultsOnMain = Math.Min(adults, Math.Min(maxAdultTariff, mainSeats));
+            int adultsOnExtra = adults - adultsOnMain;
+            ulong adultCost = adultRates[adultsOnMain - 1] + (ulong)(adultsOnExtra * (int)extraBedPrice);
+
+            for (byte children = 0; children <= (allowChildren ? maxGuests - adults : 0); children++)
+            {
+                for (byte babies = 0; babies <= (allowBabies ? maxGuests - adults - children : 0); babies++)
+                {
+                    int totalGuests = adults + children + babies;
+                    if (totalGuests > maxGuests) continue;
+
+                    // Распределение детей и младенцев
+                    int freeMainSeats = mainSeats - adultsOnMain;
+                    int childrenOnMain = Math.Min(children, freeMainSeats);
+                    int childrenOnExtra = children - childrenOnMain;
+                    freeMainSeats -= childrenOnMain;
+
+                    int babiesOnMain = Math.Min(babies, freeMainSeats);
+                    int babiesOnExtra = babies - babiesOnMain;
+
+                    // Проверка доп. мест
+                    int totalExtraBeds = adultsOnExtra + childrenOnExtra + babiesOnExtra;
+                    if (totalExtraBeds > extraBedCapacity) continue;
+
+                    // Расчет стоимости
+                    int childCost = ((childrenOnMain + childrenOnExtra) * (int)childRate);
+                    int babyCost = ((babiesOnMain + babiesOnExtra) * (int)babyRate);
+                    int totalCost = (int)adultCost + childCost + babyCost;
+
+                    rates.Add(new RateInfo(
+                        adults: adults,
+                        children: children,
+                        babies: babies,
+                        basePrice: (int)adultRates[adultsOnMain - 1],
+                        amount: (long)totalCost,
+                        extraBed: (byte)totalExtraBeds,
+                        cradle: 0,
+                        childrenPrice: (childrenOnMain * (int)childRate),
+                        childrenPriceOnBeds: (childrenOnExtra * (int)childRate),
+                        adultPriceOnBeds: (adultsOnExtra * (int)extraBedPrice)
+                    ));
+                }
+            }
+        }
         return rates;
     }
 
@@ -584,7 +572,7 @@ public class RateService
 
         var chunks = rates.Chunk(_chunkSize);
 
-        await Parallel.ForEachAsync(chunks, new ParallelOptions { MaxDegreeOfParallelism = 10 }, async (chunk, _) =>
+        foreach (var chunk in chunks)
         {
             try
             {
@@ -594,7 +582,7 @@ public class RateService
             {
                 _logService.Log(LogLevel.Error, $"Не удалось обновить chunk: {ex.Message}");
             }
-        });
+        }
     }
 
     private string GetRateTableName(long hotelId)
