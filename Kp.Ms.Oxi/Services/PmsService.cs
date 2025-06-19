@@ -68,6 +68,7 @@ public class PmsService
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
+        
         CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
     }
 
