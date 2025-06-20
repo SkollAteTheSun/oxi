@@ -70,6 +70,7 @@ public class MessageService
             return false;
         }
 
+        _logService.LogRawOperaMessage(LogLevel.Information, message);
         _logService.LogOperaMessage(LogLevel.Information, JsonConvert.SerializeXmlNode(xml));
 
         XmlElement? root = xml.DocumentElement;
