@@ -157,7 +157,7 @@ public class BookingService
         try
         {
             using var context = _contextFactory.CreateDbContext();
-            
+
             context.RoomQuotas.UpdateRange(quotas);
 
             await context.SaveChangesAsync();
@@ -247,10 +247,30 @@ public class BookingService
         var dateConditions = string.Join(",", dates.Distinct().Select(d => $"'{d:yyyy-MM-dd}'"));
 
         var sql = $@"
-        DELETE FROM {tableName} 
+        DELETE FROM {tableName}
         WHERE hotel_id = {hotelId} AND room_type_id IN ({roomTypeConditions}) AND rate_id = {rateId} AND date IN ({dateConditions})";
 
         await context.Database.ExecuteSqlRawAsync(sql);
+    }
+
+    public async Task DeleteRoomRates(ulong hotelId, ulong rateId, Dictionary<ulong, HashSet<DateOnly>> ratesToDelete, string tableName)
+    {
+        await using var context = _contextDynamicFactory.Create(tableName);
+
+        if (ratesToDelete.Count == 0)
+            return;
+
+        foreach (var rateToDelete in ratesToDelete)
+        {
+            var dateConditions = string.Join(",", rateToDelete.Value.Select(d => $"'{d:yyyy-MM-dd}'"));
+
+            var sql = $"""
+                       DELETE FROM {tableName}
+                       WHERE hotel_id = {hotelId} AND room_type_id = {rateToDelete.Key} AND rate_id = {rateId} AND date IN ({dateConditions})
+                       """;
+
+            await context.Database.ExecuteSqlRawAsync(sql);
+        }
     }
 
     public async Task<BookingRoomTypes> GetRoomType(ulong hotelId, string hrsCode)

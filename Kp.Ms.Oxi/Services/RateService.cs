@@ -309,7 +309,10 @@ public class RateService
         var roomTypeCodes = string.Join(", ", roomTypeDict?.Keys ?? Enumerable.Empty<string>());
         _logService.Log( LogLevel.Information, $"Данные из GetHotelDataAsync: HotelId={hotelId}, RateId={rateId}, RoomTypes: {roomTypeCodes}");
 
+        Dictionary<ulong, HashSet<DateOnly>> ratesToDelete = [];
         var ratesToUpdate = new List<BookingRoomRates>();
+
+        var tableName = GetRateTableName((long)hotelId);
 
         foreach (var rateDetail in rateHeader.RateDetails.RateDetail)
         {
@@ -340,6 +343,15 @@ public class RateService
                     {
                         _logService.Log(LogLevel.Warning, $"Room type {roomTypeCode} не найден в базе данных для hotelID: {hotelId.Value}.");
                         continue;
+                    }
+
+                    if (ratesToDelete.ContainsKey(roomType.Id))
+                    {
+                        ratesToDelete[roomType.Id].Add(date);
+                    }
+                    else
+                    {
+                        ratesToDelete.Add(roomType.Id, [date]);
                     }
 
                     var rates = new List<RateInfo>();
@@ -379,12 +391,9 @@ public class RateService
                     }
                 }
             }
-
-            var tableName = GetRateTableName((long)hotelId);
-            var roomTypesToUpdate = roomTypeDict.Where(rt => rateDetail.RoomTypes.Contains(rt.Key)).ToDictionary().Values;
-            await _bookingService.DeleteRateDetailsAsync(hotelId.Value, roomTypesToUpdate, rateId.Value, dates, tableName);
         }
 
+        await _bookingService.DeleteRoomRates(hotelId.Value, rateId.Value, ratesToDelete, tableName);
         await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
 
         return true;
