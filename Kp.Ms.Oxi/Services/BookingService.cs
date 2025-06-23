@@ -40,6 +40,8 @@ public class BookingService
 
     public async Task<int> GetReservedKpCount(BookingRoomTypes roomType, DateTime date)
     {
+        _logService.Log(LogLevel.Information, $"Try get from booking reservations count.");
+
         using var context = _contextFactory.CreateDbContext();
         var reserved = await context.Reservations
             .Where(reservation => reservation.HotelId == roomType.HotelId)
@@ -50,6 +52,8 @@ public class BookingService
             .Where(reservation => reservation.Status != BookingReservationStatuses.refund.ToString())
             .Where(reservation => reservation.Status != BookingReservationStatuses.closed.ToString())
             .CountAsync();
+
+        _logService.Log(LogLevel.Information, $"From booking reservations count - {reserved}.");
 
         return reserved;
     }
@@ -153,7 +157,7 @@ public class BookingService
         try
         {
             using var context = _contextFactory.CreateDbContext();
-            
+
             context.RoomQuotas.UpdateRange(quotas);
 
             await context.SaveChangesAsync();
@@ -243,10 +247,30 @@ public class BookingService
         var dateConditions = string.Join(",", dates.Distinct().Select(d => $"'{d:yyyy-MM-dd}'"));
 
         var sql = $@"
-        DELETE FROM {tableName} 
+        DELETE FROM {tableName}
         WHERE hotel_id = {hotelId} AND room_type_id IN ({roomTypeConditions}) AND rate_id = {rateId} AND date IN ({dateConditions})";
 
         await context.Database.ExecuteSqlRawAsync(sql);
+    }
+
+    public async Task DeleteRoomRates(ulong hotelId, ulong rateId, Dictionary<ulong, HashSet<DateOnly>> ratesToDelete, string tableName)
+    {
+        await using var context = _contextDynamicFactory.Create(tableName);
+
+        if (ratesToDelete.Count == 0)
+            return;
+
+        foreach (var rateToDelete in ratesToDelete)
+        {
+            var dateConditions = string.Join(",", rateToDelete.Value.Select(d => $"'{d:yyyy-MM-dd}'"));
+
+            var sql = $"""
+                       DELETE FROM {tableName}
+                       WHERE hotel_id = {hotelId} AND room_type_id = {rateToDelete.Key} AND rate_id = {rateId} AND date IN ({dateConditions})
+                       """;
+
+            await context.Database.ExecuteSqlRawAsync(sql);
+        }
     }
 
     public async Task<BookingRoomTypes> GetRoomType(ulong hotelId, string hrsCode)
@@ -264,6 +288,7 @@ public class BookingService
         using var context = _contextFactory.CreateDbContext();
         var roomTypes = await context.RoomTypes
             .AsNoTracking()
+            .Where(rt => rt.DeletedAt == null)
             .Where(rt => rt.HotelId == hotelId)
             .Where(rt => !string.IsNullOrEmpty(rt.HrsCode))
             .ToListAsync();

@@ -17,7 +17,7 @@ public class BookingRoomTypes
     [MaxLength(255)]
     public string Code { get; set; }
 
-    public byte Capacity { get; set; }
+    public int Capacity { get; set; }
     public int CountMainSeat { get; set; } = 0;
     public string? Description { get; set; }
     public string? Images { get; set; }
@@ -31,7 +31,7 @@ public class BookingRoomTypes
     public DateTime? DeletedAt { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
-    public byte Order { get; set; } = 99;
+    public int Order { get; set; } = 99;
     public string? AccommodationTypes { get; set; }
     public int? MinNightsRoomType { get; set; } = 1;
     public uint? ResourceId { get; set; }
@@ -39,7 +39,7 @@ public class BookingRoomTypes
     public ushort? SquareTo { get; set; }
 
     [Column("extrabed_capacity")]
-    public byte? ExtraBedCapacity { get; set; } = 0;
+    public int? ExtraBedCapacity { get; set; } = 0;
     public bool NotAvailForChildren { get; set; } = false;
     public bool NotAvailForBaby { get; set; } = false;
     public bool QuotasFromAsu { get; set; } = false;
@@ -48,8 +48,8 @@ public class BookingRoomTypes
     [MaxLength(255)]
     public string? HrsCode { get; set; }
 
-    public byte? ChildrenCapacity { get; set; } = 0;
-    public byte? CradleCapacity { get; set; } = 0;
+    public int? ChildrenCapacity { get; set; } = 0;
+    public int? CradleCapacity { get; set; } = 0;
 
     [MaxLength(255)]
     public string? Panorama { get; set; }

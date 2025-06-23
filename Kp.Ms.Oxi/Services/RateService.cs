@@ -276,14 +276,12 @@ public class RateService
         ulong? hotelId = null;
         ulong? rateId = null;
         Dictionary<string, BookingRoomTypes>? roomTypeDict = new();
-        List<string> roomTypes = [];
-        var dates = new List<DateOnly>();
 
+        HashSet<string> roomTypes = [];
         foreach (var rateDetail in rateHeader.RateDetails.RateDetail)
         {
-            roomTypes.AddRange(rateDetail.RoomTypes);
+            rateDetail.RoomTypes.ForEach(rt => roomTypes.Add(rt));
         }
-        _logService.Log(LogLevel.Information, $"категории номеров из xml: {roomTypes}");
 
         (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, roomTypes, rateHeader.RateCode);
 
@@ -302,10 +300,19 @@ public class RateService
             return false;
         }
 
+        if (roomTypeDict.Count == 0)
+        {
+            _logService.Log(LogLevel.Warning, "Категории номеров не найдены.");
+            return false;
+        }
+
         var roomTypeCodes = string.Join(", ", roomTypeDict?.Keys ?? Enumerable.Empty<string>());
         _logService.Log( LogLevel.Information, $"Данные из GetHotelDataAsync: HotelId={hotelId}, RateId={rateId}, RoomTypes: {roomTypeCodes}");
 
+        Dictionary<ulong, HashSet<DateOnly>> ratesToDelete = [];
         var ratesToUpdate = new List<BookingRoomRates>();
+
+        var tableName = GetRateTableName((long)hotelId);
 
         foreach (var rateDetail in rateHeader.RateDetails.RateDetail)
         {
@@ -321,13 +328,11 @@ public class RateService
                 continue;
             }
 
+            var dates = new List<DateOnly>();
             for (var date = startDate; date <= endDate; date = date.AddDays(1))
             {
                 dates.Add(date);
             }
-
-            var dateListString = string.Join(", ", dates);
-            _logService.Log(LogLevel.Debug, $"Сгенерированные даты: {dateListString}");
 
             foreach (var date in dates)
             {
@@ -338,6 +343,15 @@ public class RateService
                     {
                         _logService.Log(LogLevel.Warning, $"Room type {roomTypeCode} не найден в базе данных для hotelID: {hotelId.Value}.");
                         continue;
+                    }
+
+                    if (ratesToDelete.ContainsKey(roomType.Id))
+                    {
+                        ratesToDelete[roomType.Id].Add(date);
+                    }
+                    else
+                    {
+                        ratesToDelete.Add(roomType.Id, [date]);
                     }
 
                     var rates = new List<RateInfo>();
@@ -379,8 +393,7 @@ public class RateService
             }
         }
 
-        var tableName = GetRateTableName((long)hotelId);
-        await _bookingService.DeleteRateDetailsAsync(hotelId.Value, roomTypeDict.Values, rateId.Value, dates, tableName);
+        await _bookingService.DeleteRoomRates(hotelId.Value, rateId.Value, ratesToDelete, tableName);
         await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
 
         return true;
@@ -445,7 +458,7 @@ public class RateService
 
         if (extraBedCapacity > 0 && (rateDetail.ExtraBed > 0 || rateDetail.ExtraChild > 0))
         {
-            var ratesWithExtra = new List<RateInfo>();           
+            var ratesWithExtra = new List<RateInfo>();
                 foreach (var rate in rates)
                 {
                     int totalGuests = rate.Adults + rate.Children + rate.Babies;
@@ -564,7 +577,7 @@ public class RateService
 
     private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId)
     {
-        _logService.Log(LogLevel.Information, $"Вызван метод ProcessChunksAsync");
+        _logService.Log(LogLevel.Information, "Вызван метод ProcessChunksAsync");
 
         bool fromAsu = !string.IsNullOrEmpty(_configuration["Opera:Rate:FromAsu"]) && Convert.ToBoolean(_configuration["Opera:Rate:FromAsu"]);
 
