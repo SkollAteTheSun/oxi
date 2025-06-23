@@ -268,6 +268,7 @@ public class BookingService
         using var context = _contextFactory.CreateDbContext();
         var roomTypes = await context.RoomTypes
             .AsNoTracking()
+            .Where(rt => rt.DeletedAt == null)
             .Where(rt => rt.HotelId == hotelId)
             .Where(rt => !string.IsNullOrEmpty(rt.HrsCode))
             .ToListAsync();
