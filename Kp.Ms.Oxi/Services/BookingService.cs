@@ -40,6 +40,8 @@ public class BookingService
 
     public async Task<int> GetReservedKpCount(BookingRoomTypes roomType, DateTime date)
     {
+        _logService.Log(LogLevel.Information, $"Try get from booking reservations count.");
+
         using var context = _contextFactory.CreateDbContext();
         var reserved = await context.Reservations
             .Where(reservation => reservation.HotelId == roomType.HotelId)
@@ -50,6 +52,8 @@ public class BookingService
             .Where(reservation => reservation.Status != BookingReservationStatuses.refund.ToString())
             .Where(reservation => reservation.Status != BookingReservationStatuses.closed.ToString())
             .CountAsync();
+
+        _logService.Log(LogLevel.Information, $"From booking reservations count - {reserved}.");
 
         return reserved;
     }
