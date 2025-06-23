@@ -165,6 +165,8 @@ public class QuotaService
 
     private async Task<Dictionary<string, BookingRoomTypes>> GetBookingRoomTypes(string hotelCode)
     {
+        _logService.Log(LogLevel.Information, "Try get booking room types.");
+
         var hotel = await _bookingService.GetHotel(hotelCode);
         if (hotel == null)
         {
@@ -173,6 +175,8 @@ public class QuotaService
         }
 
         var roomTypes = await _bookingService.GetRoomTypes(hotel.Id);
+
+        _logService.Log(LogLevel.Information, $"{roomTypes.Count} booking room types got.");
 
         return roomTypes?.ToDictionary(key => key.HrsCode, value => value);
     }
