@@ -22,15 +22,17 @@ public class RateService
     private readonly XmlDeserializer _xmlDeserializer;
     private readonly BookingService _bookingService;
     private readonly int _chunkSize;
+    private readonly BssService _bssService;
 
     public RateService(IConfiguration configuration, LogService logService, IDbContextFactory<BookingContext> contextFactory,
-                        XmlDeserializer xmlDeserializer, BookingService bookingService)
+                        XmlDeserializer xmlDeserializer, BookingService bookingService, BssService bssService)
     {
         _configuration = configuration;
         _logService = logService;
         _contextFactory = contextFactory;
         _xmlDeserializer = xmlDeserializer;
         _bookingService = bookingService;
+        _bssService = bssService;
         _chunkSize = configuration.GetValue<int?>("Processing:ChunkSize") ?? throw new ArgumentNullException("Processing");
     }
 
@@ -395,6 +397,13 @@ public class RateService
 
         await _bookingService.DeleteRoomRates(hotelId.Value, rateId.Value, ratesToDelete, tableName);
         await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
+
+        var bssResponse = _bssService.SendUpdateRequest((long)hotelId);
+
+        if (bssResponse != null)
+        {
+            _logService.Log(bssResponse);
+        }
 
         return true;
     }
