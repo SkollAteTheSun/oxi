@@ -402,7 +402,7 @@ public class RateService
 
         if (bssResponse != null)
         {
-            _logService.Log(bssResponse);
+            _logService.Log(LogLevel.Information, bssResponse);
         }
 
         return true;

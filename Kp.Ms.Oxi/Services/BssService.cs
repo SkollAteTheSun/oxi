@@ -1,5 +1,5 @@
-﻿using Common.HttpClientWrapper;
-using Kp.Ms.Oxi.Models.Options;
+﻿using Kp.Ms.Oxi.Models.Options;
+using Microsoft.Extensions.Options; 
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -7,12 +7,12 @@ public class BssService
 {
     private readonly List<BssHotelOptions> _bssOptions;
 
-    private readonly IHttpClientWrapper _httpClientWrapper;
+    private readonly HttpClient _httpClient;
 
-    public BssService(IOptions<List<BssHotelOptions>> bss, IHttpClientWrapper httpClientWrapper)
+    public BssService(IOptions<List<BssHotelOptions>> bss)
     {
         _bssOptions = bss.Value;
-        _httpClientWrapper = httpClientWrapper;
+        _httpClient = new HttpClient();
     }
 
     public async ValueTask<string?> SendUpdateRequest(long hotelId)
@@ -23,13 +23,22 @@ public class BssService
         {
             try
             {
-                await _httpClientWrapper.GetAsync<string?>($"{option.Url}?{option.HotelId}");
+                var responseMessage = await _httpClient.DeleteAsync(new Uri($"{option.Url}?{option.HotelId}"));
 
-                return $"Запрос обновления по отелю {option.HotelId} успешно выполнен";
+                if (responseMessage.StatusCode == HttpStatusCode.OK)
+                {
+                    return "В bss сервисе обновление прошло успешно!";
+                }
+                else
+                {
+                    var response = await responseMessage.Content.ReadAsStringAsync();
+
+                    return $"Обновление в bss завершилось ошибкой: {response}";
+                }
             }
             catch (Exception ex)
             {
-                return $"Запрос обновления по отелю завершен с ошибкой: {ex.Message}";
+                return $"Возникла ошибка при отправке запроса в bss: {ex.Message}";
             }
         }
 
