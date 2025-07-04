@@ -24,7 +24,7 @@ public class BssService
         {
             try
             {
-                var responseMessage = await _httpClient.DeleteAsync(new Uri($"{option.Url}?{option.HotelId}"));
+                var responseMessage = await _httpClient.DeleteAsync(new Uri($"{option.Url}?hotelId={option.HotelId}"));
 
                 if (responseMessage.StatusCode == HttpStatusCode.OK)
                 {
