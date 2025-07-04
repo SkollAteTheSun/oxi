@@ -133,9 +133,12 @@ builder.Services.AddTransient<TransactionService>();
 builder.Services.AddTransient<QuotaService>();
 builder.Services.AddTransient<BookingService>();
 builder.Services.AddTransient<XmlDeserializer>();
+builder.Services.AddSingleton<BssService>();
 
 builder.Services.AddOptions<CheckOutProcessingSettings>()
     .Bind(builder.Configuration.GetSection("CheckOutProcessing"));
+builder.Services.AddOptions<List<BssHotelOptions>>()
+    .Bind(builder.Configuration.GetSection("Settings:BssOptions"));
 builder.Services.AddSingleton<PmsService>();
 builder.Services.ActivateSingleton<PmsService>();
 
