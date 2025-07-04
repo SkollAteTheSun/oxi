@@ -398,7 +398,7 @@ public class RateService
         await _bookingService.DeleteRoomRates(hotelId.Value, rateId.Value, ratesToDelete, tableName);
         await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
 
-        var bssResponse = _bssService.SendUpdateRequest((long)hotelId);
+        var bssResponse = await _bssService.SendUpdateRequest((long)hotelId);
 
         if (bssResponse != null)
         {
