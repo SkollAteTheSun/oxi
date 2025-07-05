@@ -13,8 +13,11 @@ using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
+using NLog.Web;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseNLog();
 
 builder.Services.AddOptions<OpenSearchOptions>()
     .Bind(builder.Configuration.GetSection(OpenSearchOptions.Position))
@@ -32,15 +35,10 @@ if (string.IsNullOrEmpty(bookingConnectionString))
 {
     throw new Exception("Connection string 'Booking' not found.");
 }
-builder.Services.AddDbContext<BookingContext>(options =>
-{
-    options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString));
-}, ServiceLifetime.Transient);
-builder.Services.AddDbContextFactory<BookingContext>(
-    options =>
-    {
-        options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString));
-    }, ServiceLifetime.Transient
+
+builder.Services.AddDbContextFactory<BookingContext>(options =>
+    options.UseMySql(bookingConnectionString, ServerVersion.AutoDetect(bookingConnectionString)),
+    ServiceLifetime.Transient
 );
 
 builder.Services.AddDbContextFactory<DynamicBookingContext>(options =>
