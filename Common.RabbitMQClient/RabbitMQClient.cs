@@ -182,8 +182,8 @@ public class RabbitMQClient : IRabbitMQClient, IDisposable
             false,
             arguments: new Dictionary<string, object>()
             {
-                    { "x-message-ttl", timeoutSeconds * 1000 },
-                    { "x-dead-letter-exchange", exchangeName }
+                { "x-message-ttl", timeoutSeconds * 1000 },
+                { "x-dead-letter-exchange", exchangeName }
             });
         _channel.QueueBind(deadMessagesQueueName, deadMessagesExchangeName, deadMessagesRoutingKey, null);
 
