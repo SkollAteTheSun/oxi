@@ -285,7 +285,7 @@ public class PmsService
         return existsCheckOut;
     }
 
-    private async ValueTask SendToBooking(CheckOutInfo? checkOut, string reservationId, DateTime checkOutDate)
+    public async ValueTask SendToBooking(CheckOutInfo? checkOut, string reservationId, DateTime checkOutDate)
     {
         try
         {
@@ -327,7 +327,7 @@ public class PmsService
         }
     }
 
-    private async ValueTask EditReservationStatusInShop(CheckOutInfo? checkOut, string reservationId, string reservationNumber)
+    public async ValueTask EditReservationStatusInShop(CheckOutInfo? checkOut, string reservationId, string reservationNumber)
     {
         try
         {
@@ -367,7 +367,7 @@ public class PmsService
         }
     }
 
-    private async ValueTask SendFullPaymentReceiptInShop(CheckOutInfo? checkOut, string orderId)
+    public async ValueTask SendFullPaymentReceiptInShop(CheckOutInfo? checkOut, string orderId)
     {
         try
         {
@@ -408,7 +408,7 @@ public class PmsService
         }
     }
 
-    private async ValueTask SendToMindbox(CheckOutInfo? checkOut, string reservationNumber)
+    public async ValueTask SendToMindbox(CheckOutInfo? checkOut, string reservationNumber)
     {
         try
         {
@@ -432,10 +432,15 @@ public class PmsService
                 Source = _settings.Mindbox.Source
             };
 
-            var result = await _httpClient.PostAsync<MindboxContract, object>(
+            var result = await _httpClient.PostAsync<MindboxContract, MindboxResponse>(
                 _settings.Mindbox.Url,
                 contract,
                 headers: _mindboxDefaultHeaders);
+
+            if (!result.Success)
+            {
+                throw new Exception($"{result?.ErrorMessage}. {result?.MindboxMessage}");
+            }
 
             if (checkOut != null)
             {
