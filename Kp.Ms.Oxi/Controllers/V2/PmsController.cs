@@ -51,4 +51,131 @@ public class PmsController : BaseController
 
         return Ok(result);
     }
+
+    [HttpPost("check-outs/booking")]
+    [SwaggerOperation(Summary = "Отправка выездов в букинг")]
+    public async ValueTask<ActionResult> SendCheckOutsToBooking([FromBody] List<CheckOutToBookingContract> checkOuts)
+    {
+        var result = await ExecuteRequestAsync(checkOuts, async () =>
+        {
+            var results = new List<object>();
+            foreach (var checkOut in checkOuts) {
+                var message = "success";
+                try
+                {
+                    await _pmsService.SendToBooking(null, checkOut.Id, checkOut.CheckOutDate);
+                }
+                catch (Exception ex)
+                {
+                    message = ex.Message;
+                }
+
+                results.Add(new
+                {
+                    id = checkOut.Id,
+                    message = message
+                });
+            }
+
+            return results;
+        });
+
+        return Ok(result);
+    }
+
+    [HttpPost("check-outs/shop-status")]
+    [SwaggerOperation(Summary = "Отправка выездов в шоп (статус)")]
+    public async ValueTask<ActionResult> SendCheckOutsToShopStatus([FromBody] List<CheckOutToShopStatusContract> checkOuts)
+    {
+        var result = await ExecuteRequestAsync(checkOuts, async () =>
+        {
+            var results = new List<object>();
+            foreach (var checkOut in checkOuts)
+            {
+                var message = "success";
+                try
+                {
+                    await _pmsService.EditReservationStatusInShop(null, checkOut.Id, checkOut.Number);
+                }
+                catch (Exception ex)
+                {
+                    message = ex.Message;
+                }
+
+                results.Add(new
+                {
+                    id = checkOut.Id,
+                    message = message
+                });
+            }
+
+            return results;
+        });
+
+        return Ok(result);
+    }
+
+    [HttpPost("check-outs/shop-full-payment")]
+    [SwaggerOperation(Summary = "Отправка выездов в шоп (оплата)")]
+    public async ValueTask<ActionResult> SendCheckOutsToShopFullPayment([FromBody] List<CheckOutToShopFullPaymentContract> checkOuts)
+    {
+        var result = await ExecuteRequestAsync(checkOuts, async () =>
+        {
+            var results = new List<object>();
+            foreach (var checkOut in checkOuts)
+            {
+                var message = "success";
+                try
+                {
+                    await _pmsService.SendFullPaymentReceiptInShop(null, checkOut.OrderId);
+                }
+                catch (Exception ex)
+                {
+                    message = ex.Message;
+                }
+
+                results.Add(new
+                {
+                    id = checkOut.OrderId,
+                    message = message
+                });
+            }
+
+            return results;
+        });
+
+        return Ok(result);
+    }
+
+    [HttpPost("check-outs/mindbox")]
+    [SwaggerOperation(Summary = "Отправка выездов в mindbox")]
+    public async ValueTask<ActionResult> SendCheckOutsToMindbox([FromBody] List<CheckOutToMindboxContract> checkOuts)
+    {
+        var result = await ExecuteRequestAsync(checkOuts, async () =>
+        {
+            var results = new List<object>();
+            foreach (var checkOut in checkOuts)
+            {
+                var message = "success";
+                try
+                {
+                    await _pmsService.SendToMindbox(null, checkOut.Number);
+                }
+                catch (Exception ex)
+                {
+                    message = ex.Message;
+                }
+
+                results.Add(new
+                {
+                    id = checkOut.Number,
+                    message = message
+                });
+            }
+
+            return results;
+        });
+
+        return Ok(result);
+    }
 }
