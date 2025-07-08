@@ -439,7 +439,7 @@ public class PmsService
 
             if (!result.Success)
             {
-                throw new Exception($"{result?.ErrorMessage}. {result?.MindboxMessage}");
+                throw new Exception($"{result?.ErrorMessage}. {JsonConvert.SerializeObject(result?.MindboxMessage)}");
             }
 
             if (checkOut != null)

@@ -14,7 +14,7 @@ public class MindboxResponse
     public string? ErrorMessage { get; set; }
 
     [JsonProperty("mindboxMessage")]
-    public string? MindboxMessage { get; set; }
+    public object? MindboxMessage { get; set; }
 
     [JsonProperty("data")]
     public object? Data { get; set; }
