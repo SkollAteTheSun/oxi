@@ -343,7 +343,8 @@ public class PmsService
             reservation.MindboxPointsDate = DateTime.UtcNow;
 
             using var context = await _bookingContextFactory.CreateDbContextAsync();
-            context.Update(reservation);
+            context.Reservations.Attach(reservation);
+            context.Entry(reservation).Property(x => x.MindboxPointsDate).IsModified = true;
             await context.SaveChangesAsync();
 
             _logger.LogInformation($"Sending to mindbox date for reservation \"{reservation.Id}\" set successfully.");
