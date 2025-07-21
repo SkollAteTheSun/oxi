@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
 using Kp.Ms.Oxi.Services;
@@ -42,5 +43,17 @@ public class MessageController : BaseController
         StatusDto dto = await _messageService.FidelioResult(message);
 
         return Ok(dto);
+    }
+
+    [HttpPost("receive/fidelio-xml")]
+    [SwaggerOperation(Summary = "Получение сообщения от fidelio и отправка в букинг")]
+    [Produces("application/xml")]
+    public async Task<ActionResult<MessageReceiveXmlDto>> ReceiveFidelioXml()
+    {
+        using StreamReader reader = new(Request.Body);
+        string message = await reader.ReadToEndAsync();
+        var xml = await _messageService.FidelioMessageXml(message);
+
+        return Ok(xml);
     }
 }

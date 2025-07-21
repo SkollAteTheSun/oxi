@@ -7,6 +7,7 @@ using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
@@ -278,6 +279,16 @@ public class MessageService
         {
             _logService.Log(LogLevel.Error, $"Failed to upsert reservation asu: {ex.Message}");
         }
+    }
+
+    public async Task<MessageReceiveXmlDto> FidelioMessageXml(string message)
+    {
+        _logService.Log(LogLevel.Information, $"FidelioMessageXml message: \n{message}");
+
+        return new MessageReceiveXmlDto
+        {
+            Response = "test"
+        };
     }
 
     public async Task<StatusDto> FidelioResult(string message)
