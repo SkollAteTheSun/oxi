@@ -185,6 +185,8 @@ public class PmsService
                         return;
                     }
 
+                    await SaveCheckOut(checkOut);
+
                     var bookingReservation = await GetReservationByNumber(checkOut.BookingId);
 
                     if (!_settings.IgnoreHotels.Contains(checkOut?.HotelCode))
@@ -198,14 +200,14 @@ public class PmsService
                             await SendFullPaymentReceiptInShop(checkOut, bookingReservation.OrderNumber);
 
                             await SendToMindbox(checkOut, bookingReservation.Number);
+
+                            await SetSendingToMindboxDate(bookingReservation);
                         }
                     }
                     else
                     {
                         _logger.LogWarning($"The hotel \"{checkOut?.HotelCode}\" was ignored.");
                     }
-
-                    await SaveCheckOut(checkOut);
                 }
                 catch (Exception ex)
                 {
@@ -324,6 +326,32 @@ public class PmsService
         catch (Exception ex)
         {
             throw new Exception($"An error occurred while sendind check-out to Booking. {ex.Message}");
+        }
+    }
+
+    public async ValueTask SetSendingToMindboxDate(BookingReservation reservation)
+    {
+        try
+        {
+            if (!_settings.Booking.Enabled)
+            {
+                return;
+            }
+
+            _logger.LogInformation($"Try set sending to mindbox date for reservation \"{reservation.Id}\"...");
+
+            reservation.MindboxPointsDate = DateTime.UtcNow;
+
+            using var context = await _bookingContextFactory.CreateDbContextAsync();
+            context.Reservations.Attach(reservation);
+            context.Entry(reservation).Property(x => x.MindboxPointsDate).IsModified = true;
+            await context.SaveChangesAsync();
+
+            _logger.LogInformation($"Sending to mindbox date for reservation \"{reservation.Id}\" set successfully.");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while setting sendind to mindbox date for reservation. {ex.Message}");
         }
     }
 
