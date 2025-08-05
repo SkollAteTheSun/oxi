@@ -123,8 +123,6 @@ builder.Services.AddOpenSearch(builder.Configuration);
 builder.Services.AddRabbitMQ(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
 builder.Services.AddSingleton<IHttpClientWrapper, HttpClientWrapper>();
 
-builder.Services.AddSingleton<XmlCreationService>();
-
 builder.Services.AddSingleton<LogService>();
 builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
