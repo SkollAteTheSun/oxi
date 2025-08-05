@@ -7,6 +7,7 @@ using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
@@ -281,13 +282,75 @@ public class MessageService
         }
     }
 
-    public async Task<MessageReceiveXmlDto> FidelioMessageXml(string message)
+    public async Task<OTA_HotelAvailNotifRS?> FidelioMessageXml(string message)
     {
         _logService.Log(LogLevel.Information, $"FidelioMessageXml message: \n{message}");
 
-        return new MessageReceiveXmlDto
+        XmlDocument xml = new XmlDocument();
+        try
         {
-            Response = "test"
+            xml.LoadXml(message);
+        }
+        catch (Exception ex)
+        {
+            var errorMessage = $"Xml parse error: {ex.Message}";
+            _logService.Log(LogLevel.Error, errorMessage);
+
+            return new OTA_HotelAvailNotifRS()
+            {
+                Errors = new List<Error>() {
+                    new Error()
+                    {
+                        Status = "NotProcessed",
+                        Text = errorMessage
+                    }
+                }
+            };
+        }
+
+        _logService.LogRawOperaMessage(LogLevel.Information, message);
+        _logService.LogOperaMessage(LogLevel.Information, JsonConvert.SerializeXmlNode(xml));
+
+        XmlElement? root = xml.DocumentElement;
+        if (root == null)
+        {
+            var errorMessage = "Root element is missing";
+            _logService.Log(LogLevel.Error, errorMessage);
+
+            return new OTA_HotelAvailNotifRS()
+            {
+                Errors = new List<Error>() {
+                    new Error()
+                    {
+                        Status = "NotProcessed",
+                        Text = errorMessage
+                    }
+                }
+            };
+        }
+
+        if (root.Name == nameof(OTA_HotelAvailNotifRQ))
+        {
+            var reservation = DeserializeXmlToObject<OTA_HotelAvailNotifRQ>(xml);
+
+            var errors = await _quotaService.UpdateRoomQuotasByOTAMessage(reservation);
+
+            if (errors != null && errors.Any())
+            {
+                return new OTA_HotelAvailNotifRS()
+                {
+                    Errors = errors.Select(error => new Error()
+                    {
+                        Status = "NotProcessed",
+                        Text = error
+                    }).ToList()
+                };
+            }
+        }
+
+        return new OTA_HotelAvailNotifRS()
+        {
+            Success = ""
         };
     }
 
