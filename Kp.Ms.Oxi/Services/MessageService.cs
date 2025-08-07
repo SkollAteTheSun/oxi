@@ -8,10 +8,12 @@ using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Opera;
+using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
 using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -27,6 +29,9 @@ public class MessageService
     private readonly QuotaService _quotaService;
     private readonly RateService _rateService;
     private readonly BookingService _bookingService;
+    private readonly HttpClient _client;
+    private readonly JsonSerializerOptions _jso;
+    private readonly BookingApiOptions _bookingOptions;
 
     public MessageService(
         IConfiguration configuration,
@@ -35,7 +40,8 @@ public class MessageService
         ReservationService reservationService,
         QuotaService quotaService,
         BookingService bookingService,
-        RateService rateService)
+        RateService rateService,
+        IOptions<BookingApiOptions>  bookingApiOptions)
     {
         _configuration = configuration;
         _context = context;
@@ -44,6 +50,18 @@ public class MessageService
         _quotaService = quotaService;
         _rateService = rateService;
         _bookingService = bookingService;
+        _client = new HttpClient();
+        
+        _client.DefaultRequestHeaders.Clear();
+        _client.DefaultRequestHeaders.ConnectionClose = true;
+        _client.Timeout = TimeSpan.FromSeconds(10);
+        
+        _jso = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        _bookingOptions = bookingApiOptions.Value;
     }
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
@@ -310,12 +328,7 @@ public class MessageService
             _logService.Log(LogLevel.Error, dto.Message);
             return dto;
         }
-
-        JsonSerializerOptions jso = new JsonSerializerOptions
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
-        _logService.Log(LogLevel.Information, $"Fidelio result: \n{JsonSerializer.Serialize(request, jso)}");
+        _logService.Log(LogLevel.Information, $"Fidelio result: \n{JsonSerializer.Serialize(request, _jso)}");
 
         Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.TransactionId == request.Response.Id);
         if (transaction == null)
@@ -329,44 +342,7 @@ public class MessageService
             return dto;
         }
 
-        using var httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.Clear();
-        httpClient.DefaultRequestHeaders.ConnectionClose = true;
-        httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-        string baseUrl;
-        string token;
-        string transactionGetResponseUrl;
-        try
-        {
-            baseUrl = _configuration["BookingApi:BaseUrl"] ??
-                      throw new Exception("Booking api base url not configured");
-            token = _configuration["BookingApi:Token"] ??
-                    throw new Exception("Booking api token not configured");
-            transactionGetResponseUrl = _configuration["BookingApi:TransactionGetResponseUrl"] ??
-                                        throw new Exception("Booking api transaction get response not configured");
-        }
-        catch (Exception ex)
-        {
-            StatusDto dto = new StatusDto
-            {
-                Status = StatusType.Fail.ToString().ToLower(),
-                Message = $"Configuration error: {ex.Message}"
-            };
-            _logService.Log(LogLevel.Error, dto.Message);
-            return dto;
-        }
-
-        string statusFromFidelio;
-        switch (request.Response.Status)
-        {
-            case "OK":
-                statusFromFidelio = "success";
-                break;
-            default:
-                statusFromFidelio = "error";
-                break;
-        }
+        string statusFromFidelio = request.Response.Status == "OK" ? "success" : "error";
 
         SendReservationRequest? reservationRequest = JsonSerializer.Deserialize<SendReservationRequest>(transaction.Request);
         if (reservationRequest == null)
@@ -381,7 +357,7 @@ public class MessageService
         }
 
         var guestExternalId = reservationRequest.Reservation.Profile.ExternalId ??
-                              request.Response.InsertResponse.Rows.ProfileId;
+                              request.Response.InsertResponse?.Rows.ProfileId;
 
         if (string.IsNullOrWhiteSpace(guestExternalId))
         {
@@ -396,7 +372,7 @@ public class MessageService
 
         TransactionGetResponseRequest requestToBk = new TransactionGetResponseRequest
         {
-            Token = token,
+            Token = _bookingOptions.Token,
             TransactionId = reservationRequest.Interface.TransactionId.Substring(2),
             Status = statusFromFidelio,
             Response = message,
@@ -426,11 +402,11 @@ public class MessageService
             }
         }
 
-        _logService.Log(LogLevel.Information, $"Request to booking api transaction get response url {baseUrl + transactionGetResponseUrl} body: {JsonSerializer.Serialize(requestToBk, jso)}");
+        _logService.Log(LogLevel.Information, $"Request to booking api transaction get response url {_bookingOptions.BaseUrl + _bookingOptions.TransactionGetResponseUrl} body: {JsonSerializer.Serialize(requestToBk, _jso)}");
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, baseUrl + transactionGetResponseUrl);
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestToBk, jso), Encoding.UTF8, "application/json");
-        using var response = await httpClient.SendAsync(requestMessage);
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, _bookingOptions.BaseUrl + _bookingOptions.TransactionGetResponseUrl);
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestToBk, _jso), Encoding.UTF8, "application/json");
+        using var response = await _client.SendAsync(requestMessage);
         string apiResponse = await response.Content.ReadAsStringAsync();
 
         _logService.Log(LogLevel.Information, $"Response from booking api transaction get response: {Regex.Unescape(apiResponse)}");

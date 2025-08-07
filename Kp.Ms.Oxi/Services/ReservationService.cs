@@ -4,6 +4,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Interfaces;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio;
@@ -24,13 +25,15 @@ public class ReservationService
     private readonly ILogger<ReservationService> _logger;
     private readonly DefaultContext _context;
     private readonly ReservationTaxOptions _taxOptions;
+    private readonly IXmlCreator _xmlCreator;
 
-    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context, IOptions<ReservationTaxOptions> taxOptions)
+    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context, IOptions<ReservationTaxOptions> taxOptions, IXmlCreator xmlCreator)
     {
         _configuration = configuration;
         _logger = logger;
         _context = context;
         _taxOptions = taxOptions.Value;
+        _xmlCreator = xmlCreator;
     }
 
     public async Task<string> Send(SendReservationRequest request)
@@ -648,64 +651,7 @@ public class ReservationService
     {
         string? apiResponse;
 
-        MakeTransactionId(request);
-
-        if (request.Interface.Auth == null)
-        {
-            throw new Exception("Interface auth data is not set");
-        }
-
-        byte[] bytes = Convert.FromBase64String(request.Interface.Auth.Password);
-        byte[] key = Encoding.ASCII.GetBytes(_configuration["AesEncryption:Key"] ?? throw new Exception("Aes key is not set"));
-        byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
-        string decryptedPassword = AesEncryption.Decrypt(bytes, key, iv);
-        
-        Fidelio fidelio = new Fidelio
-        {
-            Request = new Request
-            {
-                Id = request.Interface.TransactionId,
-                UserName = request.Interface.Auth.UserName,
-                Password = decryptedPassword,
-                Insert = new Insert
-                {
-                    ReqType = string.IsNullOrWhiteSpace(request.Reservation.Profile.ExternalId) ? "ProfileAndReservation" : "Reservation",
-                    TranslationTable = "XML",
-                    Fields = BuildFidelioFields(request)
-                }
-            }
-        };
-
-        // 🔧 Сериализация XML
-        XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
-        XmlSerializer xmlSerializer = new XmlSerializer(typeof(Fidelio));
-        string xmlBody = "";
-
-        XmlWriterSettings settings = new XmlWriterSettings
-        {
-            OmitXmlDeclaration = true
-        };
-
-        string xml;
-        using (var sww = new StringWriter())
-        {
-            using (XmlWriter writer = XmlWriter.Create(sww, settings))
-            {
-                xmlSerializer.Serialize(writer, fidelio, ns);
-                xmlBody = sww.ToString();
-
-                string xmlHeader = $"""
-                            <?xml version="1.0" encoding="UTF-8"?>
-                            """;
-
-                StringBuilder sb = new StringBuilder();
-                sb.Append(xmlHeader);
-                sb.Append('\n');
-                sb.Append(xmlBody);
-
-                xml = sb.ToString();
-            }
-        }
+        var xml = _xmlCreator.CreateXml(request, typeof(Fidelio));
 
         bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
         if (directMode)
@@ -738,81 +684,12 @@ public class ReservationService
                 Status = request.Interface.Status,
                 Request = JsonSerializer.Serialize(request),
                 Url = request.Interface.Url,
-                Xml = xml,
-                Pre = true
+                Xml = xml
             });
             await _context.SaveChangesAsync();
 
             apiResponse = "saved to database";
         }
         return apiResponse;   
-    }
-    
-    private List<Field> BuildFidelioFields(SendReservationRequest request)
-    {
-        var fields = new List<Field>
-        {
-            new Field { Name = "RoomType", Value = request.Reservation.RoomTypeCode },
-            new Field { Name = "RateRoomType", Value = request.Reservation.RoomTypeCode },
-            new Field { Name = "GuestArrival", Value = request.Reservation.DateIn.ToString("dd.MM.yyyy") },
-            new Field { Name = "GuestDeparture", Value = request.Reservation.DateOut.ToString("dd.MM.yyyy") },
-            new Field { Name = "ReservationStatus", Value = "1" },
-            new Field { Name = "ReservationType", Value = "RES" },
-            new Field { Name = "MarketCode", Value = request.Reservation.RoomStay.MarketCode },
-            new Field { Name = "SourceCode", Value = request.Reservation.RoomStay.SourceCode },
-            new Field { Name = "ChannelCode", Value = request.Interface.ChannelCode },
-            new Field { Name = "RateCode", Value = request.Reservation.RoomStay.RateCode },
-            new Field { Name = "CurrencyCode", Value = "RUB" },
-            new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
-            new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" },
-            new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
-            new Field { Name = "Notes", Attr = "RMA", Value = MakeComment(request) },
-            new Field { Name = "AllowRoomOverbooking", Value = "1" },
-            new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber }
-        };
-
-        // По дням
-        fields.AddRange(request.Reservation.RoomStay.Rates.Select(rate => new Field
-        {
-            Name = "RateValue",
-            Value = rate.Amount.ToString("0.00"),
-            StartDate = rate.Date.ToString("dd.MM.yyyy"),
-            EndDate = rate.Date.AddDays(1).ToString("dd.MM.yyyy")
-        }));
-        
-        // Дети
-        fields.AddRange(request.Reservation.ChildAgeCats
-            .Where(cac => cac.Count > 0)
-            .Select(cac => new Field
-            {
-                Name = "Child",
-                Attr = cac.Code,
-                Value = cac.Count.ToString()
-            }));
-
-        if (string.IsNullOrEmpty(request.Reservation.Profile.ExternalId))
-        {
-            fields.AddRange(new List<Field>
-            {
-                new Field { Name = "ProfileType", Value = "2" },
-                new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
-                new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
-                new Field { Name = "Birthday", Value = request.Reservation.Profile.DateOfBirth.ToString("dd.MM.yyyy") },
-                new Field { Name = "Communication", Attr = "MPH", Primary = "1", Value = request.Reservation.Profile.Phone },
-                new Field { Name = "Communication", Attr = "EAD", Primary = "1", Value = request.Reservation.Profile.Email },
-                new Field { Name = "Language", Value = "RUS" },
-                new Field { Name = "CountryISO3", Value = "RUS" },
-            });
-        }
-        else
-        {
-            fields.AddRange(new List<Field>
-            {
-                new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
-                new Field { Name = "ProfileCategory", Value = "4" }    // за это поле не уверен, надо норм потестить
-            });
-        }
-
-        return fields;
     }
 }
