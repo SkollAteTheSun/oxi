@@ -1,10 +1,11 @@
 using System.Xml.Serialization;
+using Kp.Ms.Oxi.Interfaces;
 
 namespace Kp.Ms.Oxi.Models.Opera;
 
 [XmlRoot(Namespace = "reservation.fidelio.5.0")]
 [XmlType(TypeName = "Reservation")]
-public class Reservation
+public class Reservation : IReservationContent
 {
     [XmlAttribute("mfShareAction")]
     public required string MfShareAction { get; set; }
