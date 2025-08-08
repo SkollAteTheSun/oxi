@@ -30,6 +30,12 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<BookingApiOptions>()
+    .Bind(builder.Configuration.GetSection(BookingApiOptions.Position))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 string? bookingConnectionString = builder.Configuration.GetConnectionString("Booking");
 if (string.IsNullOrEmpty(bookingConnectionString))
 {
@@ -132,6 +138,9 @@ builder.Services.AddTransient<QuotaService>();
 builder.Services.AddTransient<BookingService>();
 builder.Services.AddTransient<XmlDeserializer>();
 builder.Services.AddSingleton<BssService>();
+
+builder.Services.AddSingleton<IXmlCreator, XmlCreatorService>();
+builder.Services.AddSingleton<ReservationContentCreatorFactory>();
 
 builder.Services.AddOptions<CheckOutProcessingSettings>()
     .Bind(builder.Configuration.GetSection("CheckOutProcessing"));
