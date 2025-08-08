@@ -1,4 +1,5 @@
-﻿using System.Xml.Serialization;
+﻿using Kp.Ms.Oxi.Services;
+using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Models.Fidelio.Response;
 
@@ -16,4 +17,12 @@ public class Error
 
     [XmlText]
     public string Text { get; set; }
+
+    public Error(string errorMessage, string status = "NotProcessed", string type = "", string shortText = "")
+    {
+        Text = errorMessage;
+        Status = status;
+        ShortText = shortText;
+        Type = type;
+    }
 }

@@ -12,5 +12,8 @@ public class StatusApplicationControl
     public DateTime End { get; set; }
 
     [XmlAttribute]
+    public string RatePlanCode { get; set; }
+
+    [XmlAttribute]
     public string InvTypeCode { get; set; }
 }

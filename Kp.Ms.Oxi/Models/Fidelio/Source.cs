@@ -12,5 +12,5 @@ public class Source
     public string AgentDutyCode { get; set; }
 
     [XmlElement]
-    public string RequestorID { get; set; }
+    public RequestorID RequestorID { get; set; }
 }

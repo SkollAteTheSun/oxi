@@ -1,16 +1,19 @@
-﻿using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Xml;
-using System.Xml.Serialization;
-using Kp.Ms.Oxi.Context;
+﻿using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Exceptions;
 using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Fidelio;
+using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Newtonsoft.Json.Linq;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -276,6 +279,7 @@ public class RateService
         }
 
         ulong? hotelId = null;
+        Dictionary<string, ulong?> rateIds = [];
         ulong? rateId = null;
         Dictionary<string, BookingRoomTypes>? roomTypeDict = new();
 
@@ -285,7 +289,8 @@ public class RateService
             rateDetail.RoomTypes.ForEach(rt => roomTypes.Add(rt));
         }
 
-        (hotelId, roomTypeDict, rateId) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, roomTypes, rateHeader.RateCode);
+        (hotelId, roomTypeDict, rateIds) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, roomTypes, new HashSet<string>() { rateHeader.RateCode });
+        rateId = rateIds.FirstOrDefault().Value;
 
         var lines = roomTypeDict.Select(kvp => $"{kvp.Key}:{kvp.Value}");
         _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: roomTypeDict={string.Join(Environment.NewLine, lines)}");
@@ -363,7 +368,16 @@ public class RateService
 
                     if (hasChildRatesInParentRoom)
                     {
-                        rates = GenerateRatesFromParentRoom(rateDetail, roomType);
+                        var adultRates = new Dictionary<int, ulong>()
+                        {
+                            { 1, rateDetail.Rate1 },
+                            { 2, rateDetail.Rate2 ?? 0 },
+                            { 3, rateDetail.Rate3 ?? 0 },
+                            { 4, rateDetail.Rate4 ?? 0 },
+                            { 5, rateDetail.Rate5 ?? 0 },
+                        };
+
+                        rates = GenerateRatesFromParentRoom(roomType, adultRates, rateDetail.ExtraBed, rateDetail.Child2RateParentRoom, rateDetail.Child3RateParentRoom);
                     }
                     else
                     {
@@ -406,6 +420,151 @@ public class RateService
         }
 
         return true;
+    }
+
+    public async Task<FidelioOTAXmlResponse> UpdateRatesByOTAMessage(OTA_HotelRateAmountNotifRQ message)
+    {
+        _logService.Log(LogLevel.Information, $"Вызван метод UpdateRatesByOTAMessage");
+        _logService.Log(LogLevel.Information, $"OTA_HotelRateAmountNotifRQ object: \n{JsonSerializer.Serialize(message)}");
+
+        var response = new OTA_HotelRateAmountNotifRS()
+        {
+            Success = "",
+            Errors = new List<Error>(),
+            Warnings = new List<Warning>(),
+        };
+
+        try
+        {
+            if (message == null)
+            {
+                throw new Exception("Ошибка обработки сообщения OTA_HotelRateAmountNotifRQ.");
+            }
+
+            ulong? hotelId = null;
+            Dictionary<string, ulong?> rateIds = [];
+            Dictionary<string, BookingRoomTypes>? roomTypeDict = [];
+
+            HashSet<string> roomTypes = [];
+            HashSet<string> ratePlans = [];
+            message.RateAmountMessages?.Messages.ForEach(rateDetail =>
+            {
+                roomTypes.Add(rateDetail.StatusApplicationControl.InvTypeCode);
+                ratePlans.Add(rateDetail.StatusApplicationControl.RatePlanCode);
+            });
+
+            ratePlans = ratePlans
+                .Distinct()
+                .ToHashSet();
+
+            (hotelId, roomTypeDict, rateIds) = await _bookingService.GetHotelDataAsync(message.RateAmountMessages?.HotelCode, roomTypes, ratePlans);
+
+            if (!hotelId.HasValue)
+            {
+                throw new Exception($"Hotel: {message.RateAmountMessages?.HotelCode} не найден в базе данных");
+            }
+
+            if (!roomTypeDict.Any())
+            {
+                throw new Exception("Категории номеров не найдены.");
+            }
+
+            var roomTypeCodes = string.Join(", ", roomTypeDict.Keys);
+            _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: HotelId={hotelId}, RateId={string.Join(", ", rateIds)}, RoomTypes: {roomTypeCodes}");
+
+            Dictionary<ulong, HashSet<DateOnly>> ratesToDelete = [];
+            var ratesToUpdate = new List<BookingRoomRates>();
+
+            var tableName = GetRateTableName((long)hotelId);
+
+            foreach (var rateDetail in message.RateAmountMessages?.Messages)
+            {
+                try
+                {
+                    //по каждому коду roomType, который нашли в базе
+                    if (!roomTypeDict.TryGetValue(rateDetail.StatusApplicationControl.InvTypeCode, out var roomType))
+                    {
+                        throw new Exception($"Room type {rateDetail.StatusApplicationControl.InvTypeCode} не найден в базе данных для hotelID: {hotelId.Value}.");
+                    }
+
+                    if (rateIds.TryGetValue(rateDetail.StatusApplicationControl.RatePlanCode, out ulong? rateId))
+                    {
+                        throw new Exception($"Rate: {rateDetail.StatusApplicationControl.RatePlanCode} не найден в базе данных для hotelID: {hotelId.Value}.");
+                    }
+
+                    for (var datetime = rateDetail.StatusApplicationControl.Start; datetime <= rateDetail.StatusApplicationControl.End; datetime = datetime.AddDays(1))
+                    {
+                        var date = DateOnly.FromDateTime(datetime);
+
+                        foreach (var rate in rateDetail.Rates)
+                        {
+                            if (ratesToDelete.ContainsKey(roomType.Id))
+                            {
+                                ratesToDelete[roomType.Id].Add(date);
+                            }
+                            else
+                            {
+                                ratesToDelete.Add(roomType.Id, [date]);
+                            }
+
+                            var adultRates = rate.BaseByGuestAmts
+                                .Where(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Adult)
+                                .OrderBy(amt => amt.NumberOfGuests)
+                                .ToDictionary(key => key.NumberOfGuests, value => value.AmountAfterTax);
+
+                            var extraBedPrice = rate.AdditionalGuestAmounts.FirstOrDefault()?.Amount ?? 0;
+                            var babyRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Children2)?.AmountAfterTax;
+                            var childRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Children3)?.AmountAfterTax;
+
+                            var rates = GenerateRatesFromParentRoom(roomType, adultRates, extraBedPrice, babyRate, childRate);
+
+                            rates.ForEach(r =>
+                                ratesToUpdate.Add(new BookingRoomRates
+                                {
+                                    HotelId = (long)hotelId.Value,
+                                    RoomTypeId = (long)roomType.Id,
+                                    RateId = (long)rateId,
+                                    Date = date,
+                                    Adults = r.Adults,
+                                    Children = r.Children,
+                                    Babies = r.Babies,
+                                    ExtraBed = r.ExtraBed,
+                                    Craddle = r.Cradle,
+                                    Active = true,
+                                    Amount = r.Amount,
+                                    BasePrice = r.BasePrice,
+                                    ChildrenPrice = r.ChildrenPrice,
+                                    ChildrenPriceOnBeds = r.ChildrenPriceOnBeds,
+                                    AdultPriceOnBeds = r.AdultPriceOnBeds
+                                }));
+                        }
+                    }
+
+                    await _bookingService.DeleteRoomRates(hotelId.Value, rateId.Value, ratesToDelete, tableName);
+                }
+                catch (Exception ex)
+                {
+                    _logService.Log(LogLevel.Error, ex.Message);
+                    response.Errors.Add(new Error(ex.Message));
+                }
+            }
+
+            await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
+
+            var bssResponse = await _bssService.SendUpdateRequest((long)hotelId);
+
+            if (bssResponse != null)
+            {
+                _logService.Log(LogLevel.Information, bssResponse);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.Log(LogLevel.Error, ex.Message);
+            response.Errors.Add(new Error(ex.Message));
+        }
+
+        return response;
     }
 
     private List<RateInfo> GenerateRates(RateDetail rateDetail, BookingRoomTypes roomType)
@@ -508,7 +667,12 @@ public class RateService
     }
 
 
-    private List<RateInfo> GenerateRatesFromParentRoom(RateDetail rateDetail, BookingRoomTypes roomType)
+    private List<RateInfo> GenerateRatesFromParentRoom(
+        BookingRoomTypes roomType,
+        Dictionary<int, ulong> adultRates,
+        ulong extraBedPrice,
+        ulong? babyRate = 0,
+        ulong? childRate = 0)
     {
         var rates = new List<RateInfo>();
         bool allowChildren = !roomType.NotAvailForChildren;
@@ -517,21 +681,23 @@ public class RateService
         int extraBedCapacity = roomType.ExtraBedCapacity ?? 0;
         int maxGuests = mainSeats + extraBedCapacity;
 
-        ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0,
-                          rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
+        //ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0,
+        //                  rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
 
         // Определяем максимальное количество взрослых
-        int maxAdultTariff = 0;
-        for (int i = 0; i < adultRates.Length; i++)
+        int maxAdultTariff = adultRates
+            .Where(adultRate => adultRate.Value > 0)
+            .Max(adultRate => adultRate.Key);
+
+        if (maxAdultTariff == 0)
         {
-            if (adultRates[i] > 0) maxAdultTariff = i + 1;
+            return rates;
         }
-        if (maxAdultTariff == 0) return rates;
 
         // Тарифы для детей/младенцев
-        ulong childRate = rateDetail.Child3RateParentRoom ?? 0;
-        ulong babyRate = rateDetail.Child2RateParentRoom ?? 0;
-        ulong extraBedPrice = rateDetail.ExtraBed;
+        //ulong childRate = rateDetail.Child3RateParentRoom ?? 0;
+        //ulong babyRate = rateDetail.Child2RateParentRoom ?? 0;
+        //ulong extraBedPrice = rateDetail.ExtraBed;
 
         // Перебор всех возможных комбинаций гостей
         for (byte adults = 1; adults <= maxGuests; adults++)
