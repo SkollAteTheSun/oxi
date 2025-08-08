@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using Kp.Ms.Oxi.Models.Enums;
+using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
 using Kp.Ms.Oxi.Services;
