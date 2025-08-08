@@ -55,4 +55,16 @@ public class MessageController : BaseController
             });
         }
     }
+
+    [HttpPost("receive/fidelio-xml")]
+    [SwaggerOperation(Summary = "Получение сообщения от fidelio и отправка в букинг")]
+    [Produces("application/xml")]
+    public async Task<ActionResult<OTA_HotelAvailNotifRS>> ReceiveFidelioXml()
+    {
+        using StreamReader reader = new(Request.Body);
+        string message = await reader.ReadToEndAsync();
+        var xml = await _messageService.FidelioMessageXml(message);
+
+        return Ok(xml);
+    }
 }
