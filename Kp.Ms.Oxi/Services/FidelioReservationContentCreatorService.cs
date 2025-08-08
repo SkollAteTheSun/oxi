@@ -43,7 +43,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             new Field { Name = "SourceCode", Value = request.Reservation.RoomStay.SourceCode },
             new Field { Name = "ChannelCode", Value = request.Interface.ChannelCode },
             new Field { Name = "RateCode", Value = request.Reservation.RoomStay.RateCode },
-            new Field { Name = "CurrencyCode", Value = "RUB" },
+            new Field { Name = "CurrencyCode", Value = "RUR" },
             new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
             new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" },
             new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
