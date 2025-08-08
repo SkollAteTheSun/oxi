@@ -30,12 +30,11 @@ public class XmlCreatorService : IXmlCreator
     public string CreateXml(SendReservationRequest request, Type type)
     {
         MakeTransactionId(request);
-        MakeComment(request);
 
         var decryptedPassword = GetDecryptedPassword(request);
 
         var creator = _reservationContentFactory.GetCreator(type);
-        var reservationContent = JsonSerializer.Deserialize(creator.GetReservationContent(request, decryptedPassword), type);
+        var reservationContent = creator.GetReservationContent(request, decryptedPassword);
         
         // 🔧 Сериализация XML
         XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
@@ -85,31 +84,6 @@ public class XmlCreatorService : IXmlCreator
         byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
         
         return AesEncryption.Decrypt(bytes, key, iv);
-    }
-    
-    private void MakeComment(SendReservationRequest request)
-    {
-        StringBuilder sb = new StringBuilder();
-
-        sb.Append("tot: ");
-        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
-        sb.Append('\n');
-        sb.Append("paid: ");
-        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
-
-        if (request.Reservation.ChildrenAges.Count > 0)
-        {
-            sb.Append('\n');
-            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
-        }
-
-        if (!string.IsNullOrEmpty(request.Reservation.Comment))
-        {
-            sb.Append('\n');
-            sb.Append(request.Reservation.Comment);
-        }
-
-        request.Reservation.Comment = sb.ToString();
     }
 
     private void MakeTransactionId(SendReservationRequest request)

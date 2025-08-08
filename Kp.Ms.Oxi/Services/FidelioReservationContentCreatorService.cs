@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using Kp.Ms.Oxi.Interfaces;
 using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Request;
@@ -7,7 +8,7 @@ namespace Kp.Ms.Oxi.Services;
 
 public class FidelioReservationContentCreatorService : IReservationContentCreator
 {
-    public string GetReservationContent(SendReservationRequest request, string decryptedPassword)
+    public IReservationContent GetReservationContent(SendReservationRequest request, string decryptedPassword)
     {
         Fidelio fidelio = new Fidelio
         {
@@ -20,15 +21,15 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
                 {
                     ReqType = string.IsNullOrWhiteSpace(request.Reservation.Profile.ExternalId) ? "ProfileAndReservation" : "Reservation",
                     TranslationTable = "XML",
-                    Fields = BuildFidelioFields(request)
+                    Fields = BuildFields(request)
                 }
             }
         };
 
-        return JsonSerializer.Serialize(fidelio);
+        return fidelio;
     }
 
-    private List<Field> BuildFidelioFields(SendReservationRequest request)
+    private List<Field> BuildFields(SendReservationRequest request)
     {
         var fields = new List<Field>
         {
@@ -46,7 +47,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
             new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" },
             new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
-            new Field { Name = "Notes", Attr = "RMA", Value = request.Reservation.Comment },
+            new Field { Name = "Notes", Attr = "RMA", Value = MakeComment(request) },
             new Field { Name = "AllowRoomOverbooking", Value = "1" },
             new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber }
         };
@@ -94,5 +95,30 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
         }
 
         return fields;
+    }
+    
+    private string MakeComment(SendReservationRequest request)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.Append("tot: ");
+        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
+        sb.Append('\n');
+        sb.Append("paid: ");
+        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
+
+        if (request.Reservation.ChildrenAges.Count > 0)
+        {
+            sb.Append('\n');
+            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
+        }
+
+        if (!string.IsNullOrEmpty(request.Reservation.Comment))
+        {
+            sb.Append('\n');
+            sb.Append(request.Reservation.Comment);
+        }
+
+        return sb.ToString();
     }
 }
