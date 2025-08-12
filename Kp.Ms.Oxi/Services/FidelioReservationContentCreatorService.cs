@@ -76,6 +76,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             fields.AddRange(new List<Field>
             {
                 new Field { Name = "ProfileType", Value = "2" },
+                new Field { Name = "ProfileCategory", Value = "4" },    // за это поле не уверен, надо норм потестить
                 new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
                 new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
                 new Field { Name = "Birthday", Value = request.Reservation.Profile.DateOfBirth.ToString("dd.MM.yyyy") },
@@ -89,8 +90,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
         {
             fields.AddRange(new List<Field>
             {
-                new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
-                new Field { Name = "ProfileCategory", Value = "4" }    // за это поле не уверен, надо норм потестить
+                new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId }
             });
         }
 
