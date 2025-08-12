@@ -43,7 +43,8 @@ public class MessageService
         QuotaService quotaService,
         BookingService bookingService,
         RateService rateService,
-        IOptions<BookingApiOptions>  bookingApiOptions)
+        IOptions<BookingApiOptions>  bookingApiOptions,
+        HttpClient client)
     {
         _configuration = configuration;
         _context = context;
@@ -52,11 +53,7 @@ public class MessageService
         _quotaService = quotaService;
         _rateService = rateService;
         _bookingService = bookingService;
-        _client = new HttpClient();
-        
-        _client.DefaultRequestHeaders.Clear();
-        _client.DefaultRequestHeaders.ConnectionClose = true;
-        _client.Timeout = TimeSpan.FromSeconds(10);
+        _client = client;
         
         _jso = new JsonSerializerOptions
         {

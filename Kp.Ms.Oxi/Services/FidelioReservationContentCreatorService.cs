@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Interfaces;
 using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Request;
@@ -8,7 +9,13 @@ namespace Kp.Ms.Oxi.Services;
 
 public class FidelioReservationContentCreatorService : IReservationContentCreator
 {
-    public IReservationContent GetReservationContent(SendReservationRequest request, string decryptedPassword)
+    private readonly IConfiguration _configuration;
+
+    public FidelioReservationContentCreatorService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
+    public IReservationContent GetReservationContent(SendReservationRequest request)
     {
         Fidelio fidelio = new Fidelio
         {
@@ -16,7 +23,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             {
                 Id = request.Interface.TransactionId,
                 UserName = request.Interface.Auth?.UserName,
-                Password = decryptedPassword,
+                Password = GetDecryptedPassword(request),
                 Insert = new Insert
                 {
                     ReqType = string.IsNullOrWhiteSpace(request.Reservation.Profile.ExternalId) ? "ProfileAndReservation" : "Reservation",
@@ -27,6 +34,13 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
         };
 
         return fidelio;
+    }
+
+    public string GetXmlHeader(SendReservationRequest request)
+    {
+        return $"""
+                <?xml version="1.0" encoding="UTF-8"?>
+                """;
     }
 
     private List<Field> BuildFields(SendReservationRequest request)
@@ -47,7 +61,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
             new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" },
             new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
-            new Field { Name = "Notes", Attr = "RMA", Value = MakeComment(request) },
+            new Field { Name = "Notes", Attr = "RMA", Value = request.Reservation.Comment },
             new Field { Name = "AllowRoomOverbooking", Value = "1" },
             new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber }
         };
@@ -76,6 +90,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             fields.AddRange(new List<Field>
             {
                 new Field { Name = "ProfileType", Value = "2" },
+                new Field { Name = "ProfileCategory", Value = "4" },    // за это поле не уверен, надо норм потестить
                 new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
                 new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
                 new Field { Name = "Birthday", Value = request.Reservation.Profile.DateOfBirth.ToString("dd.MM.yyyy") },
@@ -89,36 +104,19 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
         {
             fields.AddRange(new List<Field>
             {
-                new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
-                new Field { Name = "ProfileCategory", Value = "4" }    // за это поле не уверен, надо норм потестить
+                new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId }
             });
         }
 
         return fields;
     }
-    
-    private string MakeComment(SendReservationRequest request)
+
+    private string GetDecryptedPassword(SendReservationRequest request)
     {
-        StringBuilder sb = new StringBuilder();
-
-        sb.Append("tot: ");
-        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
-        sb.Append('\n');
-        sb.Append("paid: ");
-        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
-
-        if (request.Reservation.ChildrenAges.Count > 0)
-        {
-            sb.Append('\n');
-            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
-        }
-
-        if (!string.IsNullOrEmpty(request.Reservation.Comment))
-        {
-            sb.Append('\n');
-            sb.Append(request.Reservation.Comment);
-        }
-
-        return sb.ToString();
+        byte[] bytes = Convert.FromBase64String(request.Interface.Auth.Password);
+        byte[] key = Encoding.ASCII.GetBytes(_configuration["AesEncryption:Key"] ?? throw new Exception("Aes key is not set"));
+        byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
+        
+        return AesEncryption.Decrypt(bytes, key, iv);
     }
 }

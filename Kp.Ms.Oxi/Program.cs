@@ -129,6 +129,13 @@ builder.Services.AddOpenSearch(builder.Configuration);
 builder.Services.AddRabbitMQ(builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQSettings>());
 builder.Services.AddSingleton<IHttpClientWrapper, HttpClientWrapper>();
 
+builder.Services.AddHttpClient<MessageService>(client =>
+{
+    client.DefaultRequestHeaders.Clear();
+    client.DefaultRequestHeaders.ConnectionClose = true;
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 builder.Services.AddSingleton<LogService>();
 builder.Services.AddTransient<RateService>();
 builder.Services.AddTransient<ReservationService>();
