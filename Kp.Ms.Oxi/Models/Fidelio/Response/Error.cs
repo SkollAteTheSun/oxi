@@ -18,6 +18,10 @@ public class Error
     [XmlText]
     public string Text { get; set; }
 
+    public Error()
+    {
+    }
+
     public Error(string errorMessage, string status = "NotProcessed", string type = "", string shortText = "")
     {
         Text = errorMessage;

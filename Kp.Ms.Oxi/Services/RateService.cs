@@ -1,4 +1,5 @@
-﻿using Kp.Ms.Oxi.Context;
+﻿using Kp.Ms.Oxi.Config;
+using Kp.Ms.Oxi.Context;
 using Kp.Ms.Oxi.Exceptions;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Fidelio;
@@ -319,7 +320,7 @@ public class RateService
         Dictionary<ulong, HashSet<DateOnly>> ratesToDelete = [];
         var ratesToUpdate = new List<BookingRoomRates>();
 
-        var tableName = GetRateTableName((long)hotelId);
+        var tableName = GetRateTableName(rateHeader.HotelCode, (long)hotelId);
 
         foreach (var rateDetail in rateHeader.RateDetails.RateDetail)
         {
@@ -370,11 +371,11 @@ public class RateService
                     {
                         var adultRates = new Dictionary<int, ulong>()
                         {
-                            { 1, rateDetail.Rate1 },
-                            { 2, rateDetail.Rate2 ?? 0 },
-                            { 3, rateDetail.Rate3 ?? 0 },
-                            { 4, rateDetail.Rate4 ?? 0 },
-                            { 5, rateDetail.Rate5 ?? 0 },
+                            { 0, rateDetail.Rate1 },
+                            { 1, rateDetail.Rate2 ?? 0 },
+                            { 2, rateDetail.Rate3 ?? 0 },
+                            { 3, rateDetail.Rate4 ?? 0 },
+                            { 4, rateDetail.Rate5 ?? 0 },
                         };
 
                         rates = GenerateRatesFromParentRoom(roomType, adultRates, rateDetail.ExtraBed, rateDetail.Child2RateParentRoom, rateDetail.Child3RateParentRoom);
@@ -410,7 +411,7 @@ public class RateService
         }
 
         await _bookingService.DeleteRoomRates(hotelId.Value, rateId.Value, ratesToDelete, tableName);
-        await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
+        await ProcessChunksAsync(ratesToUpdate, rateHeader.HotelCode, (long)hotelId);
 
         var bssResponse = await _bssService.SendUpdateRequest((long)hotelId);
 
@@ -475,7 +476,7 @@ public class RateService
             Dictionary<ulong, HashSet<DateOnly>> ratesToDelete = [];
             var ratesToUpdate = new List<BookingRoomRates>();
 
-            var tableName = GetRateTableName((long)hotelId);
+            var tableName = GetRateTableName(message.RateAmountMessages?.HotelCode, (long)hotelId);
 
             foreach (var rateDetail in message.RateAmountMessages?.Messages)
             {
@@ -487,7 +488,7 @@ public class RateService
                         throw new Exception($"Room type {rateDetail.StatusApplicationControl.InvTypeCode} не найден в базе данных для hotelID: {hotelId.Value}.");
                     }
 
-                    if (rateIds.TryGetValue(rateDetail.StatusApplicationControl.RatePlanCode, out ulong? rateId))
+                    if (!rateIds.TryGetValue(rateDetail.StatusApplicationControl.RatePlanCode, out ulong? rateId))
                     {
                         throw new Exception($"Rate: {rateDetail.StatusApplicationControl.RatePlanCode} не найден в базе данных для hotelID: {hotelId.Value}.");
                     }
@@ -495,6 +496,9 @@ public class RateService
                     for (var datetime = rateDetail.StatusApplicationControl.Start; datetime <= rateDetail.StatusApplicationControl.End; datetime = datetime.AddDays(1))
                     {
                         var date = DateOnly.FromDateTime(datetime);
+
+                        var dayOfWeek = (FidelioDayOfWeek)date.DayOfWeek;
+
 
                         foreach (var rate in rateDetail.Rates)
                         {
@@ -507,12 +511,18 @@ public class RateService
                                 ratesToDelete.Add(roomType.Id, [date]);
                             }
 
+                            var isRateForDayOfWeek = (bool)rate.GetType().GetProperty(dayOfWeek.ToString())?.GetValue(rate);
+                            if (!isRateForDayOfWeek)
+                            {
+                                continue;
+                            }
+
                             var adultRates = rate.BaseByGuestAmts
                                 .Where(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Adult)
                                 .OrderBy(amt => amt.NumberOfGuests)
-                                .ToDictionary(key => key.NumberOfGuests, value => value.AmountAfterTax);
+                                .ToDictionary(key => key.NumberOfGuests - 1, value => value.AmountAfterTax);
 
-                            var extraBedPrice = rate.AdditionalGuestAmounts.FirstOrDefault()?.Amount ?? 0;
+                            var extraBedPrice = rate.AdditionalGuestAmounts.FirstOrDefault(a => a.AgeQualifyingCode == (int)AgeQualifyingCodes.Adult)?.Amount ?? 0;
                             var babyRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Children2)?.AmountAfterTax;
                             var childRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Children3)?.AmountAfterTax;
 
@@ -549,7 +559,7 @@ public class RateService
                 }
             }
 
-            await ProcessChunksAsync(ratesToUpdate, (long)hotelId);
+            await ProcessChunksAsync(ratesToUpdate, message.RateAmountMessages?.HotelCode, (long)hotelId);
 
             var bssResponse = await _bssService.SendUpdateRequest((long)hotelId);
 
@@ -687,7 +697,7 @@ public class RateService
         // Определяем максимальное количество взрослых
         int maxAdultTariff = adultRates
             .Where(adultRate => adultRate.Value > 0)
-            .Max(adultRate => adultRate.Key);
+            .Max(adultRate => adultRate.Key + 1);
 
         if (maxAdultTariff == 0)
         {
@@ -750,13 +760,13 @@ public class RateService
         return rates;
     }
 
-    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, long hotelId)
+    private async Task ProcessChunksAsync(List<BookingRoomRates> rates, string hotelCode, long hotelId)
     {
         _logService.Log(LogLevel.Information, "Вызван метод ProcessChunksAsync");
 
         bool fromAsu = !string.IsNullOrEmpty(_configuration["Opera:Rate:FromAsu"]) && Convert.ToBoolean(_configuration["Opera:Rate:FromAsu"]);
 
-        var tableName = GetRateTableName(hotelId);
+        var tableName = GetRateTableName(hotelCode, hotelId);
 
         var chunks = rates.Chunk(_chunkSize);
 
@@ -773,10 +783,16 @@ public class RateService
         }
     }
 
-    private string GetRateTableName(long hotelId)
+    private string GetRateTableName(string hotelCode, long hotelId)
     {
-        bool fromAsu = !string.IsNullOrEmpty(_configuration["Opera:Rate:FromAsu"]) && Convert.ToBoolean(_configuration["Opera:Rate:FromAsu"]);
+        var hotelSettings = _configuration.GetSection("HotelSettings").Get<Dictionary<string, HotelSettings>>();
 
-        return fromAsu ? $"room_rates_{hotelId}" : $"room_rates_{hotelId}_asu";
+        bool fromAsu = false;
+        if (hotelSettings.TryGetValue(hotelCode, out var settings))
+        {
+            fromAsu = settings.Rate?.FromAsu ?? false;
+        }
+
+        return fromAsu ? $"room_rates_{hotelId}_asu" : $"room_rates_{hotelId}";
     }
 }

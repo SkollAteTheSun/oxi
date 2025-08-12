@@ -313,13 +313,13 @@ public class BookingService
             .Where(rt => roomTypeCodes.Contains(rt.HrsCode))
             .ToListAsync();
 
-        var rateIds = context.Rates
+        var rateIds = await context.Rates
             .AsNoTracking()
             .Where(r => r.HotelId == hotelId)
             .Where(r => r.DeletedAt == null)
             .Where(r => rateCodes.Contains(r.HrsCode))
-            .ToDictionary(key => key.HrsCode, value => (ulong?)value.Id);
+            .ToListAsync();
 
-        return (hotelId, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateIds);
+        return (hotelId, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateIds.ToDictionary(key => key.HrsCode, value => (ulong?)value.Id));
     }
 }
