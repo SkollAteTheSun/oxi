@@ -7,19 +7,25 @@ namespace Kp.Ms.Oxi.Factories;
 
 public class ReservationContentCreatorFactory
 {
-    private readonly Dictionary<Type, Func<IReservationContentCreator>> _factories = new()
+    private readonly IConfiguration _configuration;
+    private readonly Dictionary<Type, Func<IReservationContentCreator>> _factories;
+
+    public ReservationContentCreatorFactory(IConfiguration configuration)
     {
-        { typeof(Fidelio), () => new FidelioReservationContentCreatorService()}
-    };
+        _configuration = configuration;
+        _factories = new Dictionary<Type, Func<IReservationContentCreator>>
+        {
+            { typeof(Fidelio), () => new FidelioReservationContentCreatorService(_configuration) }
+        };
+    }
     
     public IReservationContentCreator GetCreator(Type objectType)
     {
-        if (_factories.TryGetValue(objectType, out var factory))
+        if (_factories.TryGetValue(objectType, out var creator))
         {
-            var temp = factory();
-            return temp;
+            return creator();
         }
-
+        
         throw new NullReferenceException($"Нет подходящего класса для типа {objectType.Name}");
     }
 }

@@ -30,11 +30,11 @@ public class XmlCreatorService : IXmlCreator
     public string CreateXml(SendReservationRequest request, Type type)
     {
         MakeTransactionId(request);
-
-        var decryptedPassword = GetDecryptedPassword(request);
+        MakeComment(request);
 
         var creator = _reservationContentFactory.GetCreator(type);
-        var reservationContent = creator.GetReservationContent(request, decryptedPassword);
+        var reservationContent = creator.GetReservationContent(request);
+        var xmlHeader = creator.GetXmlHeader(request);
         
         // 🔧 Сериализация XML
         XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
@@ -49,8 +49,6 @@ public class XmlCreatorService : IXmlCreator
                 xmlSerializer.Serialize(writer, reservationContent, ns);
                 xmlBody = sww.ToString();
 
-                string xmlHeader = GetXmlHeader(request, type);
-
                 StringBuilder sb = new StringBuilder();
                 sb.Append(xmlHeader);
                 sb.Append('\n');
@@ -63,7 +61,7 @@ public class XmlCreatorService : IXmlCreator
         return xml;
     }
 
-    private string GetXmlHeader(SendReservationRequest request, Type type)
+    /*private string GetXmlHeader(SendReservationRequest request, Type type)
     {
         return type.Name switch
         {
@@ -75,19 +73,35 @@ public class XmlCreatorService : IXmlCreator
                                             <?Label {request.Interface.HotelCode}|RESERVATION|{request.Interface.TransactionId}|{request.Interface.Status}?>
                                             """,
         };
-    }
-
-    private string GetDecryptedPassword(SendReservationRequest request)
-    {
-        byte[] bytes = Convert.FromBase64String(request.Interface.Auth.Password);
-        byte[] key = Encoding.ASCII.GetBytes(_config["AesEncryption:Key"] ?? throw new Exception("Aes key is not set"));
-        byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
-        
-        return AesEncryption.Decrypt(bytes, key, iv);
-    }
+    }*/
 
     private void MakeTransactionId(SendReservationRequest request)
     {
         request.Interface.TransactionId = "BK" + request.Interface.TransactionId;
+    }
+    
+    private void MakeComment(SendReservationRequest request)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.Append("tot: ");
+        sb.Append(request.Reservation.RoomStay.Amount.ToString("0.00"));
+        sb.Append('\n');
+        sb.Append("paid: ");
+        sb.Append(request.Reservation.PaymentAmount.ToString("0.00"));
+
+        if (request.Reservation.ChildrenAges.Count > 0)
+        {
+            sb.Append('\n');
+            sb.AppendJoin(" / ", request.Reservation.ChildrenAges.Select(childrenAge => $"реб {childrenAge} лет").ToList());
+        }
+
+        if (!string.IsNullOrEmpty(request.Reservation.Comment))
+        {
+            sb.Append('\n');
+            sb.Append(request.Reservation.Comment);
+        }
+
+        request.Reservation.Comment = sb.ToString();
     }
 }
