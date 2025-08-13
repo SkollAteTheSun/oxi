@@ -1,6 +1,9 @@
-﻿using Kp.Ms.Oxi.Models.Entity;
+﻿using Kp.Ms.Oxi.Exceptions;
+using Kp.Ms.Oxi.Models.Entity;
+using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Opera;
 using Microsoft.OpenApi.Extensions;
+using System.Collections.Generic;
 
 namespace Kp.Ms.Oxi.Services;
 
@@ -75,6 +78,92 @@ public class QuotaService
         }
 
         return true;
+    }
+
+    public async Task<List<string>> UpdateRoomQuotasByOTAMessage(OTA_HotelAvailNotifRQ message)
+    {
+        var errorMessages = new List<string>();
+
+        try
+        {
+            if (message == null)
+            {
+                var errorMessage = "Error processing message.";
+                _logService.Log(LogLevel.Error, errorMessage);
+                return new List<string>() { errorMessage };
+            }
+
+            var roomQuotas = new List<BookingRoomQuota>();
+
+            if (message.AvailStatusMessages == null)
+            {
+                var errorMessage = "Invalid message: No hotel or quota data.";
+                _logService.Log(LogLevel.Warning, errorMessage);
+                return new List<string>() { errorMessage };
+            }
+
+            var roomTypeDict = await GetBookingRoomTypes(message.AvailStatusMessages.HotelCode);
+
+            foreach (var availStatusMessage in message.AvailStatusMessages.Messages)
+            {
+                if (!roomTypeDict.TryGetValue(availStatusMessage.StatusApplicationControl.InvTypeCode, out var roomType))
+                {
+                    _logService.Log(LogLevel.Warning, $"Room type: {availStatusMessage.StatusApplicationControl.InvTypeCode} not found in database for hotel code: {message.AvailStatusMessages.HotelCode}.");
+                    continue;
+                }
+
+                var date = availStatusMessage.StatusApplicationControl.Start;
+
+                try
+                {
+                    while (date <= availStatusMessage.StatusApplicationControl.End)
+                    {
+                        long? amount = null;
+
+                        if (roomType.QuotasFromAsu)
+                        {
+                            var reservedKp = await _bookingService.GetReservedKpCount(roomType, availStatusMessage.StatusApplicationControl.Start);
+                            amount = availStatusMessage.BookingLimit + reservedKp;
+                        }
+
+                        var roomQuota = new BookingRoomQuota
+                        {
+                            HotelId = roomType.HotelId,
+                            RoomTypeId = roomType.Id,
+                            Date = date,
+                            Amount = amount,
+                            AmountAsu = availStatusMessage.BookingLimit,
+                            ReservedAsu = 0
+                        };
+
+                        roomQuotas.Add(roomQuota);
+
+                        date = date.AddDays(1);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorMessages.Add($@"HotelCode: {message.AvailStatusMessages.HotelCode}. 
+                        RoomType: {availStatusMessage.StatusApplicationControl.InvTypeCode}. 
+                        Date: {date}. 
+                        BookingLimit: {availStatusMessage.BookingLimit}. 
+                        ERROR: {ex.Message}");
+                }
+            }
+
+            _logService.Log(LogLevel.Information, $"Successfully matched {roomQuotas.Count} quotas for hotel code: {message.AvailStatusMessages.HotelCode}."); ;
+
+            if (roomQuotas.Any())
+            {
+                await _bookingService.UpdateAmountAsuRoomQuotas(roomQuotas);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessages.Add(ex.Message);
+        }
+
+        return errorMessages;
     }
 
     public async Task UpdateRoomQuotasByReservation(Reservation reservation)

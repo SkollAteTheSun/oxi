@@ -467,7 +467,27 @@ public class PmsService
 
             if (!result.Success)
             {
-                throw new Exception($"{result?.ErrorMessage}. {JsonConvert.SerializeObject(result?.MindboxMessage)}");
+                var splitedReservationNumber = reservationNumber.Split("-");
+
+                if (splitedReservationNumber.Length == 3)
+                {
+                    contract = new MindboxContract
+                    {
+                        OrderId = splitedReservationNumber[1],
+                        Status = 5,
+                        Source = _settings.Mindbox.Source
+                    };
+                
+                    result = await _httpClient.PostAsync<MindboxContract, MindboxResponse>(
+                        _settings.Mindbox.Url,
+                        contract,
+                        headers: _mindboxDefaultHeaders);
+                }
+                
+                if (!result.Success)
+                {
+                    throw new Exception($"{result?.ErrorMessage}. {JsonConvert.SerializeObject(result?.MindboxMessage)}");
+                }
             }
 
             if (checkOut != null)

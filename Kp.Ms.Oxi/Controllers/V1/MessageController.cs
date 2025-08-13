@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Response;
@@ -38,17 +39,28 @@ public class MessageController : BaseController
     [SwaggerOperation(Summary = "Получение сообщения от fidelio и отправка в букинг")]
     public async Task<ActionResult<StatusDto>> ReceiveFidelio()
     {
-        using StreamReader reader = new(Request.Body);
-        string message = await reader.ReadToEndAsync();
-        StatusDto dto = await _messageService.FidelioResult(message);
+        try
+        {
+            using StreamReader reader = new(Request.Body);
+            string message = await reader.ReadToEndAsync();
+            StatusDto dto = await _messageService.FidelioResult(message);
 
-        return Ok(dto);
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new StatusDto
+            {
+                Status = StatusType.Fail.ToString().ToLower(),
+                Message = ex.Message
+            });
+        }
     }
 
     [HttpPost("receive/fidelio-xml")]
     [SwaggerOperation(Summary = "Получение сообщения от fidelio и отправка в букинг")]
     [Produces("application/xml")]
-    public async Task<ActionResult<MessageReceiveXmlDto>> ReceiveFidelioXml()
+    public async Task<ActionResult<OTA_HotelAvailNotifRS>> ReceiveFidelioXml()
     {
         using StreamReader reader = new(Request.Body);
         string message = await reader.ReadToEndAsync();
