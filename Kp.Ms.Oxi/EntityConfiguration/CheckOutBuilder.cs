@@ -35,6 +35,10 @@ public class CheckOutBuilder : IEntityTypeConfiguration<CheckOut>
             .HasColumnName("hotel_code")
             .IsRequired();
         builder
+            .Property(checkOut => checkOut.Processed)
+            .HasColumnName("processed")
+            .HasDefaultValue(false);
+        builder
             .Property(checkOut => checkOut.CreatedAt)
             .HasColumnName("created_at")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");

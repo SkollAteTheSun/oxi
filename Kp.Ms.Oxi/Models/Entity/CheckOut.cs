@@ -8,6 +8,7 @@ public class CheckOut
     public string? BookingId { get; set; }
     public DateTime CheckOutDate { get; set; }
     public string HotelCode { get; set; }
+    public bool Processed { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

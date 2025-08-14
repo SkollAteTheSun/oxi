@@ -2,5 +2,6 @@
 
 public class CheckOutToShopFullPaymentContract
 {
+    public string Number { get; set; }
     public string OrderId { get; set; }
 }
