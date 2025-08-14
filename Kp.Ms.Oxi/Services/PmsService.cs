@@ -120,7 +120,7 @@ public class PmsService
 
             try
             {
-                await LogCheckOut(checkOut, CheckOutProcessingStatus.Detected);
+                await LogCheckOut(new CheckOut(checkOut), CheckOutProcessingStatus.Detected);
 
                 if (!_hotels.ContainsKey(checkOut.HotelCode))
                 {
@@ -134,7 +134,7 @@ public class PmsService
                     checkOut,
                     true);
 
-                await LogCheckOut(checkOut, CheckOutProcessingStatus.Queued);
+                await LogCheckOut(new CheckOut(checkOut), CheckOutProcessingStatus.Queued);
 
                 result.Success = true;
             }
@@ -148,6 +148,34 @@ public class PmsService
         }
 
         return resultList;
+    }
+
+    public async Task ResendCheckOuts()
+    {
+        List<CheckOut> unprocessedCheckOuts = [];
+        using (var context = await _contextFactory.CreateDbContextAsync())
+        {
+            unprocessedCheckOuts = await context
+                .CheckOuts
+                .AsNoTracking()
+                .Where(c => !c.Processed)
+                .ToListAsync();
+        }
+
+        foreach (var checkOut in unprocessedCheckOuts)
+        {
+            try
+            {
+                await RunCheckOutPipLine(checkOut);
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = $"An error occurred while resend the check-out. {ex.Message}";
+                _logger.LogError(errorMessage);
+
+                await LogCheckOut(checkOut, CheckOutProcessingStatus.Failed, errorMessage);
+            }
+        }
     }
 
     private async Task<Hotel> SaveHotel(Hotel hotel)
@@ -203,56 +231,14 @@ public class PmsService
                         return;
                     }
 
-                    if (string.IsNullOrEmpty(checkOutEntity.BookingId) || !_bookingIdRegex.IsMatch(checkOutEntity.BookingId))
-                    {
-                        _logger.LogWarning($"The booking id \"{checkOutEntity.BookingId}\" does not match the format.");
-                        await SetCheckOutProcessed(checkOutEntity);
-                        return;
-                    }
-
-                    var bookingReservation = await GetReservationByNumber(checkOutEntity.BookingId);
-                    if (bookingReservation == null)
-                    {
-                        _logger.LogWarning($"The reservation for booking id \"{checkOutEntity.BookingId}\" not found.");
-                        await SetCheckOutProcessed(checkOutEntity);
-                        return;
-                    }
-
-                    var statuses = await GetCheckOutStatuses(checkOutEntity.BookingId);
-
-                    if (!statuses.TryGetValue(CheckOutProcessingStatus.SendedToBooking, out _))
-                    {
-                        await SendToBooking(checkOut, checkOutEntity.BookingId, bookingReservation.Id.ToString(), checkOutEntity.CheckOutDate);
-                    }
-
-                    if (!statuses.TryGetValue(CheckOutProcessingStatus.ReservationStatusEdited, out _))
-                    {
-                        await EditReservationStatusInShop(checkOut, checkOutEntity.BookingId, bookingReservation.Id.ToString());
-                    }
-
-                    if (!statuses.TryGetValue(CheckOutProcessingStatus.FullPaymentReceiptSended, out _))
-                    {
-                        await SendFullPaymentReceiptInShop(checkOut, checkOutEntity.BookingId, bookingReservation.OrderNumber);
-                    }
-
-                    if (!statuses.TryGetValue(CheckOutProcessingStatus.SendedToMindbox, out _))
-                    {
-                        await SendToMindbox(checkOut, checkOutEntity.BookingId);
-                    }
-
-                    if (!statuses.TryGetValue(CheckOutProcessingStatus.SendingToMindboxDateSet, out _))
-                    {
-                        await SetSendingToMindboxDate(checkOut, bookingReservation);
-                    }
-
-                    await SetCheckOutProcessed(checkOutEntity);
+                    await RunCheckOutPipLine(checkOutEntity);
                 }
                 catch (Exception ex)
                 {
                     var errorMessage = $"An error occurred while processing the check-out. {ex.Message}";
                     _logger.LogError(errorMessage);
 
-                    await LogCheckOut(checkOut, CheckOutProcessingStatus.Failed, errorMessage);
+                    await LogCheckOut(new CheckOut(checkOut), CheckOutProcessingStatus.Failed, errorMessage);
 
                     await SendErrorToMail(checkOut, errorMessage);
 
@@ -260,6 +246,53 @@ public class PmsService
                 }
             });
         });
+    }
+
+    private async Task RunCheckOutPipLine(CheckOut checkOutEntity)
+    {
+        if (string.IsNullOrEmpty(checkOutEntity.BookingId) || !_bookingIdRegex.IsMatch(checkOutEntity.BookingId))
+        {
+            _logger.LogWarning($"The booking id \"{checkOutEntity.BookingId}\" does not match the format.");
+            await SetCheckOutProcessed(checkOutEntity);
+            return;
+        }
+
+        var bookingReservation = await GetReservationByNumber(checkOutEntity.BookingId);
+        if (bookingReservation == null)
+        {
+            _logger.LogWarning($"The reservation for booking id \"{checkOutEntity.BookingId}\" not found.");
+            await SetCheckOutProcessed(checkOutEntity);
+            return;
+        }
+
+        var statuses = await GetCheckOutStatuses(checkOutEntity.BookingId);
+
+        if (!statuses.TryGetValue(CheckOutProcessingStatus.SendedToBooking, out _))
+        {
+            await SendToBooking(checkOutEntity, checkOutEntity.BookingId, bookingReservation.Id.ToString(), checkOutEntity.CheckOutDate);
+        }
+
+        if (!statuses.TryGetValue(CheckOutProcessingStatus.ReservationStatusEdited, out _))
+        {
+            await EditReservationStatusInShop(checkOutEntity, checkOutEntity.BookingId, bookingReservation.Id.ToString());
+        }
+
+        if (!statuses.TryGetValue(CheckOutProcessingStatus.FullPaymentReceiptSended, out _))
+        {
+            await SendFullPaymentReceiptInShop(checkOutEntity, checkOutEntity.BookingId, bookingReservation.OrderNumber);
+        }
+
+        if (!statuses.TryGetValue(CheckOutProcessingStatus.SendedToMindbox, out _))
+        {
+            await SendToMindbox(checkOutEntity, checkOutEntity.BookingId);
+        }
+
+        if (!statuses.TryGetValue(CheckOutProcessingStatus.SendingToMindboxDateSet, out _))
+        {
+            await SetSendingToMindboxDate(checkOutEntity, bookingReservation);
+        }
+
+        await SetCheckOutProcessed(checkOutEntity);
     }
 
     private async Task<CheckOut> SaveCheckOut(CheckOutInfo checkOut)
@@ -270,7 +303,7 @@ public class PmsService
         if (existsCheckOut != null)
         {
             _logger.LogWarning($"The check-out \"{checkOut.HotelCode}:{checkOut.Id}\" already exists.");
-            await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
+            await LogCheckOut(existsCheckOut, CheckOutProcessingStatus.Saved);
             return existsCheckOut;
         }
 
@@ -292,7 +325,7 @@ public class PmsService
                 .AddAsync(checkoutEntity);
 
             await context.SaveChangesAsync();
-            await LogCheckOut(checkOut, CheckOutProcessingStatus.Saved);
+            await LogCheckOut(result.Entity, CheckOutProcessingStatus.Saved);
 
             _logger.LogInformation($"The check-out \"{checkOut.HotelCode}:{checkOut.Id}\" saved to DB successfully.");
 
@@ -373,7 +406,7 @@ public class PmsService
         _logger.LogInformation($"Check-out status \"{status}\" for reservation \"{bookingId}\" added successfully.");
     }
 
-    public async Task SendToBooking(CheckOutInfo? checkOut, string reservationNumber, string reservationId, DateTime checkOutDate)
+    public async Task SendToBooking(CheckOut? checkOut, string reservationNumber, string reservationId, DateTime checkOutDate)
     {
         try
         {
@@ -417,7 +450,7 @@ public class PmsService
         }
     }
 
-    public async Task SetSendingToMindboxDate(CheckOutInfo? checkOut, BookingReservation reservation)
+    public async Task SetSendingToMindboxDate(CheckOut? checkOut, BookingReservation reservation)
     {
         try
         {
@@ -450,7 +483,7 @@ public class PmsService
         }
     }
 
-    public async Task EditReservationStatusInShop(CheckOutInfo? checkOut, string reservationNumber, string reservationId)
+    public async Task EditReservationStatusInShop(CheckOut? checkOut, string reservationNumber, string reservationId)
     {
         try
         {
@@ -492,7 +525,7 @@ public class PmsService
         }
     }
 
-    public async Task SendFullPaymentReceiptInShop(CheckOutInfo? checkOut, string reservationNumber, string orderId)
+    public async Task SendFullPaymentReceiptInShop(CheckOut? checkOut, string reservationNumber, string orderId)
     {
         try
         {
@@ -535,7 +568,7 @@ public class PmsService
         }
     }
 
-    public async Task SendToMindbox(CheckOutInfo? checkOut, string reservationNumber)
+    public async Task SendToMindbox(CheckOut? checkOut, string reservationNumber)
     {
         try
         {
@@ -648,13 +681,13 @@ public class PmsService
         }
     }
 
-    private async Task LogCheckOut(CheckOutInfo checkOut, CheckOutProcessingStatus status, string description = "")
+    private async Task LogCheckOut(CheckOut checkOut, CheckOutProcessingStatus status, string description = "")
     {
         try
         {
             var result = await _openSearchClient.IndexAsync(new CheckOutLog()
             {
-                PmsId = checkOut.Id,
+                PmsId = checkOut.PmsId,
                 ExternalId = checkOut.ExternalId,
                 BookingId = checkOut.BookingId,
                 CheckOutDate = checkOut.CheckOutDate,
