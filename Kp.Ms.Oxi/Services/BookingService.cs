@@ -296,8 +296,8 @@ public class BookingService
         return roomTypes;
     }
 
-    public async Task<(ulong? HotelId, Dictionary<string, BookingRoomTypes> RoomTypes, ulong? RateId)>
-        GetHotelDataAsync(string hotelCode, IEnumerable<string> roomTypeCodes, string rateCode)
+    public async Task<(ulong? HotelId, Dictionary<string, BookingRoomTypes> RoomTypes, Dictionary<string, ulong?> RateId)>
+        GetHotelDataAsync(string hotelCode, IEnumerable<string> roomTypeCodes, IEnumerable<string> rateCodes)
     {
         using var context = _contextFactory.CreateDbContext();
 
@@ -313,12 +313,13 @@ public class BookingService
             .Where(rt => roomTypeCodes.Contains(rt.HrsCode))
             .ToListAsync();
 
-        var rateId = await context.Rates
+        var rateIds = await context.Rates
             .AsNoTracking()
-            .Where(r => r.HrsCode == rateCode && r.HotelId == hotelId && r.DeletedAt == null)
-            .Select(r => (ulong?)r.Id)
-            .FirstOrDefaultAsync();
+            .Where(r => r.HotelId == hotelId)
+            .Where(r => r.DeletedAt == null)
+            .Where(r => rateCodes.Contains(r.HrsCode))
+            .ToListAsync();
 
-        return (hotelId, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateId);
+        return (hotelId, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateIds.ToDictionary(key => key.HrsCode, value => (ulong?)value.Id));
     }
 }
