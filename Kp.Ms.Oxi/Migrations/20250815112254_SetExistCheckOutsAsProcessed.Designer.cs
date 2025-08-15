@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Kp.Ms.Oxi.Migrations
 {
     [DbContext(typeof(DefaultContext))]
-    [Migration("20250815080047_SetExistCheckOutsAsProcessed")]
+    [Migration("20250815112254_SetExistCheckOutsAsProcessed")]
     partial class SetExistCheckOutsAsProcessed
     {
         /// <inheritdoc />
