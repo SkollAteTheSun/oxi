@@ -63,7 +63,7 @@ public class PmsController : BaseController
                 var message = "success";
                 try
                 {
-                    await _pmsService.SendToBooking(null, checkOut.Id, checkOut.CheckOutDate);
+                    await _pmsService.SendToBooking(null, checkOut.Number, checkOut.Id, checkOut.CheckOutDate);
                 }
                 catch (Exception ex)
                 {
@@ -95,7 +95,7 @@ public class PmsController : BaseController
                 var message = "success";
                 try
                 {
-                    await _pmsService.EditReservationStatusInShop(null, checkOut.Id, checkOut.Number);
+                    await _pmsService.EditReservationStatusInShop(null, checkOut.Number, checkOut.Id);
                 }
                 catch (Exception ex)
                 {
@@ -127,7 +127,7 @@ public class PmsController : BaseController
                 var message = "success";
                 try
                 {
-                    await _pmsService.SendFullPaymentReceiptInShop(null, checkOut.OrderId);
+                    await _pmsService.SendFullPaymentReceiptInShop(null, checkOut.Number, checkOut.OrderId);
                 }
                 catch (Exception ex)
                 {

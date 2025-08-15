@@ -155,6 +155,9 @@ builder.Services.AddOptions<List<BssHotelOptions>>()
     .Bind(builder.Configuration.GetSection("Settings:BssOptions"));
 builder.Services.AddSingleton<PmsService>();
 builder.Services.ActivateSingleton<PmsService>();
+builder.Services.AddOptions<ResendCheckOutsSettings>()
+    .Bind(builder.Configuration.GetSection("ResendCheckOuts"));
+builder.Services.AddHostedService<CheckOutResendHostedService>();
 
 builder.Services.AddHealthChecks();
 

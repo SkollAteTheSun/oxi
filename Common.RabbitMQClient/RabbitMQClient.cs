@@ -127,7 +127,7 @@ public class RabbitMQClient : IRabbitMQClient, IDisposable
                     }
                     catch (Exception e)
                     {
-                        if (_settings.DeadMessagesTryNumber == 0 || Convert.ToInt32(arg.DeliveryTag) <= _settings.DeadMessagesTryNumber)
+                        if (_settings.DeadMessagesTimeoutSeconds > 0 && (_settings.DeadMessagesTryNumber == 0 || Convert.ToInt32(arg.DeliveryTag) <= _settings.DeadMessagesTryNumber))
                         {
                             _channel.BasicReject(arg.DeliveryTag, false);
                             _logger.LogError($"Failed to process message from queue: {e.Message}");
@@ -137,8 +137,11 @@ public class RabbitMQClient : IRabbitMQClient, IDisposable
                             _logger.LogError($"The number of attempts to complete the task was exceeded due to an error: {e.Message}");
                             _channel.BasicAck(arg.DeliveryTag, false);
 
-                            _channel.BasicPublish($"{_errorMessagesPrefix}{exchangeName}", routingKey, null, arg.Body.ToArray());
-                            _logger.LogError($"The task has been sent to the waiting queue for {_settings.ErrorMessagesTimeoutSeconds} seconds.");
+                            if (_settings.ErrorMessagesTimeoutSeconds > 0)
+                            {
+                                _channel.BasicPublish($"{_errorMessagesPrefix}{exchangeName}", routingKey, null, arg.Body.ToArray());
+                                _logger.LogError($"The task has been sent to the waiting queue for {_settings.ErrorMessagesTimeoutSeconds} seconds.");
+                            }
                         }
                     }
                 }

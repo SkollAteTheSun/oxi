@@ -4,10 +4,11 @@ public enum CheckOutProcessingStatus
 {
     Detected,
     Queued,
+    Saved,
     SendedToBooking,
     ReservationStatusEdited,
     FullPaymentReceiptSended,
     SendedToMindbox,
-    Saved,
+    SendingToMindboxDateSet,
     Failed
 }

@@ -1,4 +1,6 @@
-﻿namespace Kp.Ms.Oxi.Models.Entity;
+﻿using Kp.Ms.Oxi.Models.Request;
+
+namespace Kp.Ms.Oxi.Models.Entity;
 
 public class CheckOut
 {
@@ -8,6 +10,7 @@ public class CheckOut
     public string? BookingId { get; set; }
     public DateTime CheckOutDate { get; set; }
     public string HotelCode { get; set; }
+    public bool Processed { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -15,5 +18,14 @@ public class CheckOut
     { 
         Id = Guid.NewGuid();
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public CheckOut(CheckOutInfo checkOutInfo)
+    {
+        PmsId = checkOutInfo.Id;
+        ExternalId = checkOutInfo.ExternalId;
+        BookingId = checkOutInfo.BookingId;
+        CheckOutDate = checkOutInfo.CheckOutDate;
+        HotelCode = checkOutInfo.HotelCode;
     }
 }
