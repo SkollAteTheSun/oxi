@@ -291,7 +291,7 @@ public class RateService
         }
 
         (hotelId, roomTypeDict, rateIds) = await _bookingService.GetHotelDataAsync(rateHeader.HotelCode, roomTypes, new HashSet<string>() { rateHeader.RateCode });
-        rateId = rateIds.FirstOrDefault().Value;
+        rateIds.TryGetValue(rateHeader.RateCode, out rateId);
 
         var lines = roomTypeDict.Select(kvp => $"{kvp.Key}:{kvp.Value}");
         _logService.Log(LogLevel.Information, $"Данные из GetHotelDataAsync: roomTypeDict={string.Join(Environment.NewLine, lines)}");
@@ -454,10 +454,6 @@ public class RateService
                 ratePlans.Add(rateDetail.StatusApplicationControl.RatePlanCode);
             });
 
-            ratePlans = ratePlans
-                .Distinct()
-                .ToHashSet();
-
             (hotelId, roomTypeDict, rateIds) = await _bookingService.GetHotelDataAsync(message.RateAmountMessages?.HotelCode, roomTypes, ratePlans);
 
             if (!hotelId.HasValue)
@@ -499,7 +495,6 @@ public class RateService
 
                         var dayOfWeek = (FidelioDayOfWeek)date.DayOfWeek;
 
-
                         foreach (var rate in rateDetail.Rates)
                         {
                             if (ratesToDelete.ContainsKey(roomType.Id))
@@ -523,8 +518,8 @@ public class RateService
                                 .ToDictionary(key => key.NumberOfGuests - 1, value => value.AmountAfterTax);
 
                             var extraBedPrice = rate.AdditionalGuestAmounts.FirstOrDefault(a => a.AgeQualifyingCode == (int)AgeQualifyingCodes.Adult)?.Amount ?? 0;
-                            var babyRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Children2)?.AmountAfterTax;
-                            var childRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Children3)?.AmountAfterTax;
+                            var babyRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Baby)?.AmountAfterTax;
+                            var childRate = rate.BaseByGuestAmts.FirstOrDefault(amt => amt.AgeQualifyingCode == (int)AgeQualifyingCodes.Child)?.AmountAfterTax;
 
                             var rates = GenerateRatesFromParentRoom(roomType, adultRates, extraBedPrice, babyRate, childRate);
 
@@ -691,9 +686,6 @@ public class RateService
         int extraBedCapacity = roomType.ExtraBedCapacity ?? 0;
         int maxGuests = mainSeats + extraBedCapacity;
 
-        //ulong[] adultRates = { rateDetail.Rate1, rateDetail.Rate2 ?? 0, rateDetail.Rate3 ?? 0,
-        //                  rateDetail.Rate4 ?? 0, rateDetail.Rate5 ?? 0 };
-
         // Определяем максимальное количество взрослых
         int maxAdultTariff = adultRates
             .Where(adultRate => adultRate.Value > 0)
@@ -703,11 +695,6 @@ public class RateService
         {
             return rates;
         }
-
-        // Тарифы для детей/младенцев
-        //ulong childRate = rateDetail.Child3RateParentRoom ?? 0;
-        //ulong babyRate = rateDetail.Child2RateParentRoom ?? 0;
-        //ulong extraBedPrice = rateDetail.ExtraBed;
 
         // Перебор всех возможных комбинаций гостей
         for (byte adults = 1; adults <= maxGuests; adults++)
@@ -764,8 +751,6 @@ public class RateService
     {
         _logService.Log(LogLevel.Information, "Вызван метод ProcessChunksAsync");
 
-        bool fromAsu = !string.IsNullOrEmpty(_configuration["Opera:Rate:FromAsu"]) && Convert.ToBoolean(_configuration["Opera:Rate:FromAsu"]);
-
         var tableName = GetRateTableName(hotelCode, hotelId);
 
         var chunks = rates.Chunk(_chunkSize);
@@ -787,12 +772,12 @@ public class RateService
     {
         var hotelSettings = _configuration.GetSection("HotelSettings").Get<Dictionary<string, HotelSettings>>();
 
-        bool fromAsu = false;
+        bool toAsu = false;
         if (hotelSettings.TryGetValue(hotelCode, out var settings))
         {
-            fromAsu = settings.Rate?.FromAsu ?? false;
+            toAsu = settings.Rate?.ToAsu ?? false;
         }
 
-        return fromAsu ? $"room_rates_{hotelId}_asu" : $"room_rates_{hotelId}";
+        return toAsu ? $"room_rates_{hotelId}_asu" : $"room_rates_{hotelId}";
     }
 }
