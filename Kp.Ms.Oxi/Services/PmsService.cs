@@ -39,7 +39,7 @@ public class PmsService
     private readonly IDictionary<string, string> _mindboxDefaultHeaders;
     private readonly IDictionary<string, string> _bookingDefaultHeaders;
     private const string _authScheme = "Bearer";
-    private const string _uniqueViolation = "23505";
+    private const string _resendQueueName = "RESEND";
 
     private readonly Regex _bookingIdRegex = new Regex("^[0-9]+-[0-9]+-[0-9]+$");
 
@@ -76,8 +76,11 @@ public class PmsService
                 .Hotels
                 .ToDictionary(key => key.Code, value => value);
         }
-        
-        CreateProcessingChannelsForCheckOuts(_hotels.Keys.ToList());
+
+        var queueKeys = _hotels.Keys.ToList();
+        queueKeys.Add(_resendQueueName);
+
+        CreateProcessingChannelsForCheckOuts(queueKeys);
     }
 
     public IEnumerable<Hotel> GetHotels()
@@ -166,7 +169,21 @@ public class PmsService
         {
             try
             {
-                await RunCheckOutPipLine(checkOut);
+                var checkOutInfo = new CheckOutInfo()
+                {
+                    Id = checkOut.PmsId,
+                    ExternalId = checkOut.ExternalId,
+                    BookingId = checkOut.BookingId,
+                    HotelCode = checkOut.HotelCode,
+                    CheckOutDate = checkOut.CheckOutDate
+                };
+
+                _rabbitMQClient.SendMessage(
+                    $"{EXCHANGE_PREFIX}-{_resendQueueName}",
+                    $"{QUEUE_PREFIX}-{_resendQueueName}",
+                    $"{ROUTING_PREFIX}-{_resendQueueName}",
+                    checkOutInfo,
+                    true);
             }
             catch (Exception ex)
             {
