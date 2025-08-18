@@ -471,7 +471,7 @@ public class PmsService
     {
         try
         {
-            if (!_settings.Mindbox.Enabled && !_settings.Booking.Enabled)
+            if (!_settings.Mindbox.Enabled || !_settings.Booking.Enabled)
             {
                 return;
             }
