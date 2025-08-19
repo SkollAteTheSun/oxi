@@ -2,5 +2,5 @@
 
 public class HotelSettingsRate
 {
-    public bool FromAsu { get; set; }
+    public bool ToAsu { get; set; }
 }

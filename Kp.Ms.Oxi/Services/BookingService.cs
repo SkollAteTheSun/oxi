@@ -320,6 +320,10 @@ public class BookingService
             .Where(r => rateCodes.Contains(r.HrsCode))
             .ToListAsync();
 
+        rateIds = rateIds
+            .DistinctBy(r => r.HrsCode)
+            .ToList();
+
         return (hotelId, roomTypes.ToDictionary(rt => rt.HrsCode, rt => rt), rateIds.ToDictionary(key => key.HrsCode, value => (ulong?)value.Id));
     }
 }

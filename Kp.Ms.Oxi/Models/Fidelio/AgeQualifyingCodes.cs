@@ -2,8 +2,8 @@
 
 public enum AgeQualifyingCodes
 {
-    Children1 = 7,
-    Children2 = 8,
-    Children3 = 9,
+    Infant = 7,
+    Baby = 8,
+    Child = 9,
     Adult = 10
 }
