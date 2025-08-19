@@ -4,6 +4,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Interfaces;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio;
@@ -24,13 +25,15 @@ public class ReservationService
     private readonly ILogger<ReservationService> _logger;
     private readonly DefaultContext _context;
     private readonly ReservationTaxOptions _taxOptions;
+    private readonly IXmlCreator _xmlCreator;
 
-    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context, IOptions<ReservationTaxOptions> taxOptions)
+    public ReservationService(IConfiguration configuration, ILogger<ReservationService> logger, DefaultContext context, IOptions<ReservationTaxOptions> taxOptions, IXmlCreator xmlCreator)
     {
         _configuration = configuration;
         _logger = logger;
         _context = context;
         _taxOptions = taxOptions.Value;
+        _xmlCreator = xmlCreator;
     }
 
     public async Task<string> Send(SendReservationRequest request)
@@ -42,7 +45,7 @@ public class ReservationService
             _ => throw new Exception("Неизвестный тип интерфейса")
         };
     }
-
+    
     private static string MakeComment(SendReservationRequest request)
     {
         StringBuilder sb = new StringBuilder();
@@ -642,299 +645,51 @@ public class ReservationService
 
         return apiResponse;
     }
-
+    
+    //Новый метод "Отправлять новый профиль одновременно с бронью"
     private async Task<string> SendToFidelio(SendReservationRequest request)
     {
         string? apiResponse;
 
-        MakeTransactionId(request);
+        var xml = _xmlCreator.CreateXml(request, typeof(Fidelio));
 
-        if (request.Interface.Auth == null)
+        bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
+        if (directMode)
         {
-            throw new Exception("Interface auth data is not set");
-        }
-
-        byte[] bytes = Convert.FromBase64String(request.Interface.Auth.Password);
-        byte[] key = Encoding.ASCII.GetBytes(_configuration["AesEncryption:Key"] ?? throw new Exception("Aes key is not set"));
-        byte[] iv = Encoding.ASCII.GetBytes(request.Interface.Auth.Iv);
-        string decryptedPassword = AesEncryption.Decrypt(bytes, key, iv);
-
-        // если новый профиль гостя, то делается транзакция только на профиль отдельно без брони
-        if (string.IsNullOrEmpty(request.Reservation.Profile.ExternalId))
-        {
-            request.Interface.TransactionId += "_PROFILE";
-
-            Fidelio fidelio = new Fidelio
+            using (var httpClient = new HttpClient())
             {
-                Request = new Request
+                httpClient.DefaultRequestHeaders.Clear();
+                httpClient.DefaultRequestHeaders.ConnectionClose = true;
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, request.Interface.Url);
+                requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
+                using (var response = httpClient.SendAsync(requestMessage).Result)
                 {
-                    Id = request.Interface.TransactionId,
-                    UserName = request.Interface.Auth.UserName,
-                    Password = decryptedPassword,
-                    Insert = new Insert
-                    {
-                        ReqType = "Profile",
-                        TranslationTable = "XML",
-                        Fields =
-                        [
-                            new Field { Name = "ProfileType", Value = "2" },
-                            new Field { Name = "ProfileCategory", Value = "4" },
-                            new Field { Name = "GuestName", Value = request.Reservation.Profile.LastName },
-                            new Field { Name = "GuestFirstname", Value = request.Reservation.Profile.FirstName },
-                            new Field { Name = "Communication", Attr = "MPH", Primary = "1", Value = request.Reservation.Profile.Phone },
-                            new Field { Name = "Communication", Attr = "EAD", Primary = "1", Value = request.Reservation.Profile.Email },
-                            new Field { Name = "Language", Value = "RUS" },
-                            new Field { Name = "CountryISO3", Value = "RUS" },
-                            new Field { Name = "Birthday", Value = request.Reservation.Profile.DateOfBirth.ToString("dd.MM.yyyy") },
-                        ]
-                    }
+                    response.EnsureSuccessStatusCode();
+                    apiResponse = response.Content.ReadAsStringAsync().Result;
                 }
-            };
-
-            XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
-
-            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Fidelio));
-            string xmlBody = "";
-
-            XmlWriterSettings settings = new XmlWriterSettings
-            {
-                OmitXmlDeclaration = true
-            };
-
-            string xml;
-            using (var sww = new StringWriter())
-            {
-                using (XmlWriter writer = XmlWriter.Create(sww, settings))
-                {
-                    xmlSerializer.Serialize(writer, fidelio, ns);
-                    xmlBody = sww.ToString();
-
-                    string xmlHeader = $"""
-                                        <?xml version="1.0" encoding="UTF-8"?>
-                                        """;
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append(xmlHeader);
-                    sb.Append('\n');
-                    sb.Append(xmlBody);
-
-                    xml = sb.ToString();
-                }
-            }
-
-            bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
-            if (directMode)
-            {
-                using (var httpClient = new HttpClient())
-                {
-                    httpClient.DefaultRequestHeaders.Clear();
-                    httpClient.DefaultRequestHeaders.ConnectionClose = true;
-                    httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-                    var requestMessage = new HttpRequestMessage(HttpMethod.Post, request.Interface.Url);
-                    requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
-                    using (var response = httpClient.SendAsync(requestMessage).Result)
-                    {
-                        response.EnsureSuccessStatusCode();
-                        apiResponse = response.Content.ReadAsStringAsync().Result;
-                    }
-                }
-            }
-            else
-            {
-                _context.Transactions.Add(new Transaction
-                {
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    HotelCode = request.Interface.HotelCode,
-                    TransactionId = request.Interface.TransactionId,
-                    InterfaceName = request.Interface.InterfaceName,
-                    InterfaceType = (int)request.Interface.Type,
-                    Status = request.Interface.Status,
-                    Request = JsonSerializer.Serialize(request),
-                    Url = request.Interface.Url,
-                    Xml = xml,
-                    Pre = true
-                });
-                await _context.SaveChangesAsync();
-
-                apiResponse = "saved to database";
             }
         }
         else
         {
-            Fidelio fidelio = new Fidelio
+            _context.Transactions.Add(new Transaction
             {
-                Request = new Request
-                {
-                    Id = request.Interface.TransactionId,
-                    UserName = request.Interface.Auth.UserName,
-                    Password = decryptedPassword
-                }
-            };
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                HotelCode = request.Interface.HotelCode,
+                TransactionId = request.Interface.TransactionId,
+                InterfaceName = request.Interface.InterfaceName,
+                InterfaceType = (int)request.Interface.Type,
+                Status = request.Interface.Status,
+                Request = JsonSerializer.Serialize(request),
+                Url = request.Interface.Url,
+                Xml = xml
+            });
+            await _context.SaveChangesAsync();
 
-            if (request.Reservation.Status == ReservationStatusType.Cancelled)
-            {
-                if (request.Reservation.ExternalId == null)
-                {
-                    throw new Exception("Отмена бронирования не возможна. Не передан external id.");
-                }
-
-                fidelio.Request.Command = new Command
-                {
-                    Cancel = new Cancel
-                    {
-                        GuestNum = request.Reservation.ExternalId,
-                        Reason = "cancelled in booking"
-                    }
-                };
-            }
-            else
-            {
-                List<Field> fields =
-                [
-                    new Field { Name = "RoomType", Value = request.Reservation.RoomTypeCode },
-                    new Field { Name = "RateRoomType", Value = request.Reservation.RoomTypeCode },
-                    new Field { Name = "GuestArrival", Value = request.Reservation.DateIn.ToString("dd.MM.yyyy") },
-                    new Field { Name = "GuestDeparture", Value = request.Reservation.DateOut.ToString("dd.MM.yyyy") },
-                    new Field { Name = "ReservationStatus", Value = "1" }, // 0 - tentative, 1 - definite,
-                    // new Field { Name = "ReservationComment1", Value = "" }, // Reservation / billing info
-                    // new Field { Name = "ReservationComment2", Value = "" }, // Remarks
-                    new Field { Name = "ReservationType", Value = "RES" },
-                    new Field { Name = "ProfileID", Value = request.Reservation.Profile.ExternalId },
-                    new Field { Name = "MarketCode", Value = request.Reservation.RoomStay.MarketCode },
-                    new Field { Name = "SourceCode", Value = request.Reservation.RoomStay.SourceCode },
-                    new Field { Name = "ChannelCode", Value = request.Interface.ChannelCode },
-                    new Field { Name = "RateCode", Value = request.Reservation.RoomStay.RateCode },
-                    // new Field { Name = "RateValue", Value = request.Reservation.RoomStay.Amount.ToString("0.00") },
-                    new Field { Name = "CurrencyCode", Value = "RUR" },
-                    // new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber },
-                    new Field { Name = "CompanyID", Value = request.Interface.TravelAgentId.ToString() },
-                    new Field
-                    {
-                        Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0"
-                    }, // Attributes / Resort fee | Reservation / Resort fee
-                    new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
-                    // new Field { Name = "Child", Attr = "CA1", Value = request.Reservation.Child.ToString() },
-                    new Field { Name = "Notes", Attr = "RMA", Value = MakeComment(request) }, // Notes / Reservation / Reservation messages
-                    // new Field { Name = "Notes", Attr = "BNO", Value = "" }, // Notes / Reservation / Billing notes
-                    new Field { Name = "AllowRoomOverbooking", Value = "1" }
-                ];
-
-                fields.AddRange(request.Reservation.RoomStay.Rates.Select(rateOneDay => new Field
-                {
-                    Name = "RateValue",
-                    Value = rateOneDay.Amount.ToString("0.00"),
-                    StartDate = rateOneDay.Date.ToString("dd.MM.yyyy"),
-                    EndDate = rateOneDay.Date.AddDays(1).ToString("dd.MM.yyyy")
-                }));
-
-                fields.AddRange(request.Reservation.ChildAgeCats
-                    .Where(cac => cac.Count > 0)
-                    .Select(childAgeCat => new Field
-                    {
-                        Name = "Child",
-                        Attr = childAgeCat.Code,
-                        Value = childAgeCat.Count.ToString()
-                    }));
-
-                if (request.Reservation.ExternalId == null)
-                {
-                    fidelio.Request.Insert = new Insert
-                    {
-                        ReqType = "Reservation",
-                        TranslationTable = "XML",
-                        Fields = fields
-                    };
-
-                    // только при создании брони можем задать
-                    fidelio.Request.Insert.Fields.Add(new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber });
-                }
-                else
-                {
-                    fidelio.Request.Update = new Update
-                    {
-                        ReqType = "Reservation",
-                        Conditions =
-                        [
-                            new Condition { Name = "GuestNum", Operation = "eq", Value = request.Reservation.ExternalId }
-                        ],
-                        Fields = fields
-                    };
-                }
-            }
-
-            XmlSerializerNamespaces ns = new XmlSerializerNamespaces([XmlQualifiedName.Empty]);
-
-            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Fidelio));
-            string xmlBody = "";
-
-            XmlWriterSettings settings = new XmlWriterSettings
-            {
-                OmitXmlDeclaration = true
-            };
-
-            string xml;
-            using (var sww = new StringWriter())
-            {
-                using (XmlWriter writer = XmlWriter.Create(sww, settings))
-                {
-                    xmlSerializer.Serialize(writer, fidelio, ns);
-                    xmlBody = sww.ToString();
-
-                    string xmlHeader = $"""
-                                        <?xml version="1.0" encoding="UTF-8"?>
-                                        """;
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append(xmlHeader);
-                    sb.Append('\n');
-                    sb.Append(xmlBody);
-
-                    xml = sb.ToString();
-                }
-            }
-
-            bool directMode = Convert.ToBoolean(_configuration["DirectMode"]);
-            if (directMode)
-            {
-                using (var httpClient = new HttpClient())
-                {
-                    httpClient.DefaultRequestHeaders.Clear();
-                    httpClient.DefaultRequestHeaders.ConnectionClose = true;
-                    httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-                    var requestMessage = new HttpRequestMessage(HttpMethod.Post, request.Interface.Url);
-                    requestMessage.Content = new StringContent(xml, Encoding.UTF8, "text/xml");
-                    using (var response = httpClient.SendAsync(requestMessage).Result)
-                    {
-                        response.EnsureSuccessStatusCode();
-                        apiResponse = response.Content.ReadAsStringAsync().Result;
-                    }
-                }
-            }
-            else
-            {
-                _context.Transactions.Add(new Transaction
-                {
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    HotelCode = request.Interface.HotelCode,
-                    TransactionId = request.Interface.TransactionId,
-                    InterfaceName = request.Interface.InterfaceName,
-                    InterfaceType = (int)request.Interface.Type,
-                    Status = request.Interface.Status,
-                    Request = JsonSerializer.Serialize(request),
-                    Url = request.Interface.Url,
-                    Xml = xml,
-                    Pre = false
-                });
-                await _context.SaveChangesAsync();
-
-                apiResponse = "saved to database";
-            }
+            apiResponse = "saved to database";
         }
-
-        return apiResponse;
+        return apiResponse;   
     }
 }

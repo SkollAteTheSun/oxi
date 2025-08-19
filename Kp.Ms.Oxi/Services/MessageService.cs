@@ -10,10 +10,12 @@ using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Fidelio.Response;
 using Kp.Ms.Oxi.Models.Opera;
+using Kp.Ms.Oxi.Models.Options;
 using Kp.Ms.Oxi.Models.Request;
 using Kp.Ms.Oxi.Models.Request.Fidelio.Result;
 using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -29,6 +31,9 @@ public class MessageService
     private readonly QuotaService _quotaService;
     private readonly RateService _rateService;
     private readonly BookingService _bookingService;
+    private readonly HttpClient _client;
+    private readonly JsonSerializerOptions _jso;
+    private readonly BookingApiOptions _bookingOptions;
 
     public MessageService(
         IConfiguration configuration,
@@ -37,7 +42,9 @@ public class MessageService
         ReservationService reservationService,
         QuotaService quotaService,
         BookingService bookingService,
-        RateService rateService)
+        RateService rateService,
+        IOptions<BookingApiOptions>  bookingApiOptions,
+        HttpClient client)
     {
         _configuration = configuration;
         _context = context;
@@ -46,6 +53,14 @@ public class MessageService
         _quotaService = quotaService;
         _rateService = rateService;
         _bookingService = bookingService;
+        _client = client;
+        
+        _jso = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        _bookingOptions = bookingApiOptions.Value;
     }
 
     public async Task<bool> Receive(string message, MessageReceiveRequest? messageReceiveRequest)
@@ -384,12 +399,7 @@ public class MessageService
             _logService.Log(LogLevel.Error, dto.Message);
             return dto;
         }
-
-        JsonSerializerOptions jso = new JsonSerializerOptions
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
-        _logService.Log(LogLevel.Information, $"Fidelio result: \n{JsonSerializer.Serialize(request, jso)}");
+        _logService.Log(LogLevel.Information, $"Fidelio result: \n{JsonSerializer.Serialize(request, _jso)}");
 
         Transaction? transaction = await _context.Transactions.FirstOrDefaultAsync(t => t.TransactionId == request.Response.Id);
         if (transaction == null)
@@ -403,129 +413,74 @@ public class MessageService
             return dto;
         }
 
-        if (transaction.Pre)
+        string statusFromFidelio = request.Response.Status == "OK" ? "success" : "error";
+
+        SendReservationRequest? reservationRequest = JsonSerializer.Deserialize<SendReservationRequest>(transaction.Request);
+        if (reservationRequest == null)
         {
-            SendReservationRequest? reservationRequest = JsonSerializer.Deserialize<SendReservationRequest>(transaction.Request);
-            if (reservationRequest == null)
+            StatusDto dto = new StatusDto
             {
-                StatusDto dto = new StatusDto
-                {
-                    Status = StatusType.Fail.ToString().ToLower(),
-                    Message = "Dont parse reservation request in transaction"
-                };
-                _logService.Log(LogLevel.Error, dto.Message);
-                return dto;
-            }
-
-            reservationRequest.Reservation.Profile.ExternalId = request.Response.InsertResponse?.Rows?.ProfileId;
-            reservationRequest.Interface.TransactionId =
-                reservationRequest.Interface.TransactionId.Substring(2, reservationRequest.Interface.TransactionId.Length - 10);
-            if (string.IsNullOrEmpty(reservationRequest.Reservation.Profile.ExternalId))
-            {
-                StatusDto dto = new StatusDto
-                {
-                    Status = StatusType.Fail.ToString().ToLower(),
-                    Message = "Fidelio result profile id is empty"
-                };
-                _logService.Log(LogLevel.Error, dto.Message);
-                return dto;
-            }
-            await _reservationService.Send(reservationRequest);
-        }
-        else
-        {
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Clear();
-            httpClient.DefaultRequestHeaders.ConnectionClose = true;
-            httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-            string baseUrl;
-            string token;
-            string transactionGetResponseUrl;
-            try
-            {
-                baseUrl = _configuration["BookingApi:BaseUrl"] ??
-                          throw new Exception("Booking api base url not configured");
-                token = _configuration["BookingApi:Token"] ??
-                        throw new Exception("Booking api token not configured");
-                transactionGetResponseUrl = _configuration["BookingApi:TransactionGetResponseUrl"] ??
-                                            throw new Exception("Booking api transaction get response not configured");
-            }
-            catch (Exception ex)
-            {
-                StatusDto dto = new StatusDto
-                {
-                    Status = StatusType.Fail.ToString().ToLower(),
-                    Message = $"Configuration error: {ex.Message}"
-                };
-                _logService.Log(LogLevel.Error, dto.Message);
-                return dto;
-            }
-
-            string statusFromFidelio;
-            switch (request.Response.Status)
-            {
-                case "OK":
-                    statusFromFidelio = "success";
-                    break;
-                default:
-                    statusFromFidelio = "error";
-                    break;
-            }
-
-            SendReservationRequest? reservationRequest = JsonSerializer.Deserialize<SendReservationRequest>(transaction.Request);
-            if (reservationRequest == null)
-            {
-                StatusDto dto = new StatusDto
-                {
-                    Status = StatusType.Fail.ToString().ToLower(),
-                    Message = "Dont parse reservation request in transaction"
-                };
-                _logService.Log(LogLevel.Error, dto.Message);
-                return dto;
-            }
-
-            TransactionGetResponseRequest requestToBk = new TransactionGetResponseRequest
-            {
-                Token = token,
-                TransactionId = reservationRequest.Interface.TransactionId.Substring(2),
-                Status = statusFromFidelio,
-                Response = message,
-                GuestExternalId = reservationRequest.Reservation.Profile.ExternalId
+                Status = StatusType.Fail.ToString().ToLower(),
+                Message = "Dont parse reservation request in transaction"
             };
-
-            if (statusFromFidelio == "success")
-            {
-                if (request.Response.InsertResponse != null)
-                {
-                    if (request.Response.InsertResponse.Rows.GuestNum == null)
-                    {
-                        StatusDto dto = new StatusDto
-                        {
-                            Status = StatusType.Fail.ToString().ToLower(),
-                            Message = "Response from fidelio dont contain GuestNum"
-                        };
-                        _logService.Log(LogLevel.Error, dto.Message);
-                        return dto;
-                    }
-
-                    requestToBk.ReservationExternalId = request.Response.InsertResponse.Rows.GuestNum.ToString();
-                }
-                else if (request.Response.UpdateResponse != null || reservationRequest.Reservation.ExternalId != null)
-                {
-                    requestToBk.ReservationExternalId = reservationRequest.Reservation.ExternalId;
-                }
-            }
-
-            _logService.Log(LogLevel.Information, $"Request to booking api transaction get response url {baseUrl + transactionGetResponseUrl} body: {JsonSerializer.Serialize(requestToBk, jso)}");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, baseUrl + transactionGetResponseUrl);
-            requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestToBk, jso), Encoding.UTF8, "application/json");
-            using var response = await httpClient.SendAsync(requestMessage);
-            string apiResponse = await response.Content.ReadAsStringAsync();
-
-            _logService.Log(LogLevel.Information, $"Response from booking api transaction get response: {Regex.Unescape(apiResponse)}");
+            _logService.Log(LogLevel.Error, dto.Message);
+            return dto;
         }
+
+        var guestExternalId = reservationRequest.Reservation.Profile.ExternalId ??
+                              request.Response.InsertResponse?.Rows.ProfileId;
+
+        if (string.IsNullOrWhiteSpace(guestExternalId))
+        {
+            StatusDto dto = new StatusDto
+            {
+                Status = StatusType.Fail.ToString().ToLower(),
+                Message = "Received empty ExternalId in json and xml Fidelio"
+            };
+            _logService.Log(LogLevel.Error, dto.Message);
+            return dto;
+        }
+
+        TransactionGetResponseRequest requestToBk = new TransactionGetResponseRequest
+        {
+            Token = _bookingOptions.Token,
+            TransactionId = reservationRequest.Interface.TransactionId.Substring(2),
+            Status = statusFromFidelio,
+            Response = message,
+            GuestExternalId = guestExternalId
+        };
+
+        if (statusFromFidelio == "success")
+        {
+            if (request.Response.InsertResponse != null)
+            {
+                if (request.Response.InsertResponse.Rows.GuestNum == null)
+                {
+                    StatusDto dto = new StatusDto
+                    {
+                        Status = StatusType.Fail.ToString().ToLower(),
+                        Message = "Response from fidelio dont contain GuestNum"
+                    };
+                    _logService.Log(LogLevel.Error, dto.Message);
+                    return dto;
+                }
+
+                requestToBk.ReservationExternalId = request.Response.InsertResponse.Rows.GuestNum.ToString();
+            }
+            else if (request.Response.UpdateResponse != null || reservationRequest.Reservation.ExternalId != null)
+            {
+                requestToBk.ReservationExternalId = reservationRequest.Reservation.ExternalId;
+            }
+        }
+
+        _logService.Log(LogLevel.Information, $"Request to booking api transaction get response url {_bookingOptions.BaseUrl + _bookingOptions.TransactionGetResponseUrl} body: {JsonSerializer.Serialize(requestToBk, _jso)}");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, _bookingOptions.BaseUrl + _bookingOptions.TransactionGetResponseUrl);
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestToBk, _jso), Encoding.UTF8, "application/json");
+        using var response = await _client.SendAsync(requestMessage);
+        string apiResponse = await response.Content.ReadAsStringAsync();
+
+        _logService.Log(LogLevel.Information, $"Response from booking api transaction get response: {Regex.Unescape(apiResponse)}");
 
         transaction.Received = true;
         transaction.ReceivedAt = DateTime.UtcNow;
