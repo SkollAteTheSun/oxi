@@ -63,7 +63,9 @@ public class QuotaService
                     Date = inventory.Datum,
                     Amount = amount,
                     AmountAsu = roomTypeInventory.Available,
-                    ReservedAsu = roomTypeInventory?.Definite?.ResvCount ?? 0
+                    ReservedAsu = roomTypeInventory?.Definite?.ResvCount ?? 0,
+                    TotalAsu = roomTypeInventory?.PhysicalRooms ?? 0,
+                    OutOfServiceAsu = roomTypeInventory?.Definite?.BlockCount ?? 0,
                 };
 
                 roomQuotas.Add(roomQuota);

@@ -19,4 +19,10 @@ public class BookingRoomQuota
     public long AmountAsu { get; set; }
 
     public long ReservedAsu { get; set; }
+    
+    public long TotalAsu { get; set; }
+    
+    public long OutOfServiceAsu { get; set; }
+    
+    //public long? ComplimentaryRooms { get; set; }
 }
