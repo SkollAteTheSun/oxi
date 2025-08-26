@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using System.Text.Json;
 using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Interfaces;
+using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio;
 using Kp.Ms.Oxi.Models.Request;
 
@@ -17,6 +17,11 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
     }
     public IReservationContent GetReservationContent(SendReservationRequest request)
     {
+        if (request.Interface.Auth == null)
+        {
+            throw new Exception("Interface auth data is not set");
+        }
+        
         Fidelio fidelio = new Fidelio
         {
             Request = new Request
@@ -24,14 +29,58 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
                 Id = request.Interface.TransactionId,
                 UserName = request.Interface.Auth?.UserName,
                 Password = GetDecryptedPassword(request),
-                Insert = new Insert
+                /*Insert = new Insert
                 {
                     ReqType = string.IsNullOrWhiteSpace(request.Reservation.Profile.ExternalId) ? "ProfileAndReservation" : "Reservation",
                     TranslationTable = "XML",
                     Fields = BuildFields(request)
-                }
+                }*/
             }
         };
+
+        if (request.Reservation.Status == ReservationStatusType.Cancelled)
+        {
+            if (string.IsNullOrWhiteSpace(request.Reservation.ExternalId))
+            {
+                throw new Exception("Отмена бронирования не возможна. Не передан external id.");
+            }
+            
+            fidelio.Request.Command = new Command
+            {
+                Cancel = new Cancel
+                {
+                    GuestNum = request.Reservation.ExternalId,
+                    Reason = "cancelled in booking"
+                }
+            };
+        }
+        else
+        {
+            if (request.Reservation.ExternalId == null)
+            {
+                fidelio.Request.Insert = new Insert
+                {
+                    ReqType = string.IsNullOrWhiteSpace(request.Reservation.Profile.ExternalId) ? "ProfileAndReservation" : "Reservation",
+                    TranslationTable = "XML",
+                    Fields = BuildFields(request)
+                };
+
+                // только при создании брони можем задать
+                fidelio.Request.Insert.Fields.Add(new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber });
+            }
+            else
+            {
+                fidelio.Request.Update = new Update
+                {
+                    ReqType = "Reservation",
+                    Conditions =
+                    [
+                        new Condition { Name = "GuestNum", Operation = "eq", Value = request.Reservation.ExternalId }
+                    ],
+                    Fields = BuildFields(request)
+                };
+            }
+        }
 
         return fidelio;
     }
@@ -62,8 +111,7 @@ public class FidelioReservationContentCreatorService : IReservationContentCreato
             new Field { Name = "ReservationAttribute", Attr = "KUR", Description = "Payer", Value = "0" },
             new Field { Name = "NoOfAdults", Value = request.Reservation.Adult.ToString() },
             new Field { Name = "Notes", Attr = "RMA", Value = request.Reservation.Comment },
-            new Field { Name = "AllowRoomOverbooking", Value = "1" },
-            new Field { Name = "CrsResNumber", Value = request.Reservation.ReservationNumber }
+            new Field { Name = "AllowRoomOverbooking", Value = "1" }
         };
 
         // По дням
