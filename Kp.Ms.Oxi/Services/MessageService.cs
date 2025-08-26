@@ -297,7 +297,7 @@ public class MessageService
         }
     }
 
-    public async Task<OTA_HotelAvailNotifRS?> FidelioMessageXml(string message)
+    public async Task<FidelioOTAXmlResponse?> FidelioMessageXml(string message)
     {
         _logService.Log(LogLevel.Information, $"FidelioMessageXml message: \n{message}");
 
@@ -311,14 +311,10 @@ public class MessageService
             var errorMessage = $"Xml parse error: {ex.Message}";
             _logService.Log(LogLevel.Error, errorMessage);
 
-            return new OTA_HotelAvailNotifRS()
+            return new FidelioOTAXmlResponse()
             {
                 Errors = new List<Error>() {
-                    new Error()
-                    {
-                        Status = "NotProcessed",
-                        Text = errorMessage
-                    }
+                    new Error(errorMessage)
                 }
             };
         }
@@ -332,41 +328,45 @@ public class MessageService
             var errorMessage = "Root element is missing";
             _logService.Log(LogLevel.Error, errorMessage);
 
-            return new OTA_HotelAvailNotifRS()
+            return new FidelioOTAXmlResponse()
             {
                 Errors = new List<Error>() {
-                    new Error()
-                    {
-                        Status = "NotProcessed",
-                        Text = errorMessage
-                    }
+                    new Error(errorMessage)
                 }
             };
         }
 
+        FidelioOTAXmlResponse response = null;
+
         if (root.Name == nameof(OTA_HotelAvailNotifRQ))
         {
-            var reservation = DeserializeXmlToObject<OTA_HotelAvailNotifRQ>(xml);
+            var quotas = DeserializeXmlToObject<OTA_HotelAvailNotifRQ>(xml);
 
-            var errors = await _quotaService.UpdateRoomQuotasByOTAMessage(reservation);
-
-            if (errors != null && errors.Any())
-            {
-                return new OTA_HotelAvailNotifRS()
-                {
-                    Errors = errors.Select(error => new Error()
-                    {
-                        Status = "NotProcessed",
-                        Text = error
-                    }).ToList()
-                };
-            }
+            response = await _quotaService.UpdateRoomQuotasByOTAMessage(quotas);
         }
 
-        return new OTA_HotelAvailNotifRS()
+        if (root.Name == nameof(OTA_HotelRateAmountNotifRQ))
         {
-            Success = ""
-        };
+            var rates = DeserializeXmlToObject<OTA_HotelRateAmountNotifRQ>(xml);
+
+            response = await _rateService.UpdateRatesByOTAMessage(rates);
+        }
+
+        if (!response.Warnings.Any())
+        {
+            response.Warnings = null;
+        }
+
+        if (!response.Errors.Any())
+        {
+            response.Errors = null;
+        }
+        else
+        {
+            response.Success = null;
+        }
+
+        return response;
     }
 
     public async Task<StatusDto> FidelioResult(string message)

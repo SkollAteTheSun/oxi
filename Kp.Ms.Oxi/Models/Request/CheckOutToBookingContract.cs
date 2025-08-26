@@ -2,6 +2,7 @@
 
 public class CheckOutToBookingContract
 {
+    public string Number { get; set; }
     public string Id { get; set; }
     public DateTime CheckOutDate { get; set; }
 }

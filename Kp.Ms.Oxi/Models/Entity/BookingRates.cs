@@ -51,7 +51,7 @@ public class BookingRates
     public int? MultipleDays { get; set; }
     public int? FixChildrenExtraBed { get; set; } = 0;
     public int? FixExtraBed { get; set; } = 0;
-    public int? FixCraddle { get; set; } = 0;
+    public int? FixCradle { get; set; } = 0;
     public int? FixCountChildren { get; set; } = 0;
     public int? FixCountBabies { get; set; } = 0;
     public string? ConditionCancel { get; set; }
@@ -62,8 +62,8 @@ public class BookingRates
     public int? FixChildrenExtraBedNew { get; set; } = 0;
     public DateOnly? FixExtraBedDateNew { get; set; }
     public int? FixExtraBedNew { get; set; } = 0;
-    public DateOnly? FixCraddleDateNew { get; set; }
-    public int? FixCraddleNew { get; set; } = 0;
+    public DateOnly? FixCradleDateNew { get; set; }
+    public int? FixCradleNew { get; set; } = 0;
     public DateOnly? FixCountChildrenDateNew { get; set; }
     public int? FixCountChildrenNew { get; set; } = 0;
     public DateOnly? FixCountBabiesDateNew { get; set; }
