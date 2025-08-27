@@ -11,8 +11,7 @@ namespace Kp.Ms.Oxi.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var date = DateTime.UtcNow.AddMonths(-2);
-            migrationBuilder.Sql($"UPDATE check_out SET processed = true WHERE check_out_date < date('{date.ToString("yyyy-MM-dd")}')");
+            migrationBuilder.Sql("UPDATE check_out SET processed = true");
         }
 
         /// <inheritdoc />
