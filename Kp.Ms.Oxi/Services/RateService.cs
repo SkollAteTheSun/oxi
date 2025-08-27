@@ -770,7 +770,8 @@ public class RateService
 
     private string GetRateTableName(string hotelCode, long hotelId)
     {
-        var hotelSettings = _configuration.GetSection("HotelSettings").Get<Dictionary<string, HotelSettings>>();
+        var hotelSettings = _configuration.GetSection("HotelSettings").Get<Dictionary<string, HotelSettings>>()
+            ?? new Dictionary<string, HotelSettings>();
 
         bool toAsu = false;
         if (hotelSettings.TryGetValue(hotelCode, out var settings))
