@@ -54,7 +54,7 @@ public class MessageService
         _rateService = rateService;
         _bookingService = bookingService;
         _client = client;
-        
+
         _jso = new JsonSerializerOptions
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -429,17 +429,6 @@ public class MessageService
 
         var guestExternalId = reservationRequest.Reservation.Profile.ExternalId ??
                               request.Response.InsertResponse?.Rows.ProfileId;
-
-        if (string.IsNullOrWhiteSpace(guestExternalId))
-        {
-            StatusDto dto = new StatusDto
-            {
-                Status = StatusType.Fail.ToString().ToLower(),
-                Message = "Received empty ExternalId in json and xml Fidelio"
-            };
-            _logService.Log(LogLevel.Error, dto.Message);
-            return dto;
-        }
 
         TransactionGetResponseRequest requestToBk = new TransactionGetResponseRequest
         {
