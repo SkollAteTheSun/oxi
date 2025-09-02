@@ -78,8 +78,8 @@ public class QuotaService
         var response = new OTA_HotelAvailNotifRS()
         {
             Success = "",
-            Errors = new List<Error>(),
-            Warnings = new List<Warning>(),
+            Errors = [],
+            Warnings = [],
         };
 
         try
@@ -127,7 +127,7 @@ public class QuotaService
                         ERROR: {ex.Message}";
 
                     _logService.Log(LogLevel.Error, errorMessage);
-                    response.Errors.Add(new Error(errorMessage));
+                    response.Warnings.Add(new Warning(errorMessage));
                 }
             }
 

@@ -1,10 +1,5 @@
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Xml;
-using System.Xml.Serialization;
 using Kp.Ms.Oxi.Context;
+using Kp.Ms.Oxi.Exceptions;
 using Kp.Ms.Oxi.Models.Entity;
 using Kp.Ms.Oxi.Models.Enums;
 using Kp.Ms.Oxi.Models.Fidelio;
@@ -17,6 +12,13 @@ using Kp.Ms.Oxi.Models.Response;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using System.IO;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Serialization;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -297,9 +299,16 @@ public class MessageService
         }
     }
 
-    public async Task<FidelioOTAXmlResponse?> FidelioMessageXml(string message)
+    public async Task<string> FidelioMessageXml(string message)
     {
         _logService.Log(LogLevel.Information, $"FidelioMessageXml message: \n{message}");
+
+        FidelioOTAXmlResponse response = new FidelioOTAXmlResponse()
+        {
+            Success = "",
+            Errors = [],
+            Warnings = [],
+        };
 
         XmlDocument xml = new XmlDocument();
         try
@@ -311,12 +320,7 @@ public class MessageService
             var errorMessage = $"Xml parse error: {ex.Message}";
             _logService.Log(LogLevel.Error, errorMessage);
 
-            return new FidelioOTAXmlResponse()
-            {
-                Errors = new List<Error>() {
-                    new Error(errorMessage)
-                }
-            };
+            response.Errors.Add(new Error(errorMessage));
         }
 
         _logService.LogRawOperaMessage(LogLevel.Information, message);
@@ -328,45 +332,35 @@ public class MessageService
             var errorMessage = "Root element is missing";
             _logService.Log(LogLevel.Error, errorMessage);
 
-            return new FidelioOTAXmlResponse()
-            {
-                Errors = new List<Error>() {
-                    new Error(errorMessage)
-                }
-            };
+            response.Errors.Add(new Error(errorMessage));
         }
 
-        FidelioOTAXmlResponse response = null;
+        if (response.Errors.Any())
+        {
+            return SerializeObjectToXml<FidelioOTAXmlResponse>(response);
+        }
 
         if (root.Name == nameof(OTA_HotelAvailNotifRQ))
         {
             var quotas = DeserializeXmlToObject<OTA_HotelAvailNotifRQ>(xml);
 
-            response = await _quotaService.UpdateRoomQuotasByOTAMessage(quotas);
+            var quotasResponse = await _quotaService.UpdateRoomQuotasByOTAMessage(quotas);
+
+            return SerializeObjectToXml<OTA_HotelAvailNotifRS>(quotasResponse);
         }
 
         if (root.Name == nameof(OTA_HotelRateAmountNotifRQ))
         {
             var rates = DeserializeXmlToObject<OTA_HotelRateAmountNotifRQ>(xml);
 
-            response = await _rateService.UpdateRatesByOTAMessage(rates);
+            var ratesResponse = await _rateService.UpdateRatesByOTAMessage(rates);
+
+            return SerializeObjectToXml<OTA_HotelRateAmountNotifRS>(ratesResponse);
         }
 
-        if (!response.Warnings.Any())
-        {
-            response.Warnings = null;
-        }
+        response.Errors.Add(new Error("Unknown message"));
 
-        if (!response.Errors.Any())
-        {
-            response.Errors = null;
-        }
-        else
-        {
-            response.Success = null;
-        }
-
-        return response;
+        return SerializeObjectToXml<FidelioOTAXmlResponse>(response);
     }
 
     public async Task<StatusDto> FidelioResult(string message)
@@ -511,4 +505,31 @@ public class MessageService
             return null;
         }
     }
+
+    private string SerializeObjectToXml<TModel>(FidelioOTAXmlResponse model) where TModel : class
+    {
+        if (!model.Warnings.Any())
+        {
+            model.Warnings = null;
+        }
+
+        if (!model.Errors.Any())
+        {
+            model.Errors = null;
+        }
+        else
+        {
+            model.Success = null;
+        }
+
+        XmlSerializer serializer = new XmlSerializer(typeof(TModel));
+        using StringWriter stringWriter = new Utf8StringWriter();
+        serializer.Serialize(stringWriter, model);
+        return stringWriter.ToString();
+    }
+}
+
+public class Utf8StringWriter : StringWriter
+{
+    public override Encoding Encoding => Encoding.UTF8;
 }

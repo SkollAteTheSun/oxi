@@ -431,15 +431,15 @@ public class RateService
         var response = new OTA_HotelRateAmountNotifRS()
         {
             Success = "",
-            Errors = new List<Error>(),
-            Warnings = new List<Warning>(),
+            Errors = [],
+            Warnings = [],
         };
 
         try
         {
             if (message == null)
             {
-                throw new Exception("Ошибка обработки сообщения OTA_HotelRateAmountNotifRQ.");
+                throw new Exception("Process message OTA_HotelRateAmountNotifRQ failed.");
             }
 
             ulong? hotelId = null;
@@ -458,12 +458,14 @@ public class RateService
 
             if (!hotelId.HasValue)
             {
-                throw new Exception($"Hotel: {message.RateAmountMessages?.HotelCode} не найден в базе данных");
+                response.Warnings.Add(new Warning($"Hotel: {message.RateAmountMessages?.HotelCode} not found in DB."));
+                return response;
             }
 
             if (!roomTypeDict.Any())
             {
-                throw new Exception("Категории номеров не найдены.");
+                response.Warnings.Add(new Warning("Room types not found."));
+                return response;
             }
 
             var roomTypeCodes = string.Join(", ", roomTypeDict.Keys);
@@ -481,12 +483,14 @@ public class RateService
                     //по каждому коду roomType, который нашли в базе
                     if (!roomTypeDict.TryGetValue(rateDetail.StatusApplicationControl.InvTypeCode, out var roomType))
                     {
-                        throw new Exception($"Room type {rateDetail.StatusApplicationControl.InvTypeCode} не найден в базе данных для hotelID: {hotelId.Value}.");
+                        response.Warnings.Add(new Warning($"Room type {rateDetail.StatusApplicationControl.InvTypeCode} not found in DB for hotelID: {hotelId.Value}."));
+                        continue;
                     }
 
                     if (!rateIds.TryGetValue(rateDetail.StatusApplicationControl.RatePlanCode, out ulong? rateId))
                     {
-                        throw new Exception($"Rate: {rateDetail.StatusApplicationControl.RatePlanCode} не найден в базе данных для hotelID: {hotelId.Value}.");
+                        response.Warnings.Add(new Warning($"Rate: {rateDetail.StatusApplicationControl.RatePlanCode} not found in DB for hotelID: {hotelId.Value}."));
+                        continue;
                     }
 
                     for (var datetime = rateDetail.StatusApplicationControl.Start; datetime <= rateDetail.StatusApplicationControl.End; datetime = datetime.AddDays(1))
