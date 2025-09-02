@@ -1,25 +1,19 @@
 ﻿using System.Text;
-using System.Text.Json;
 using System.Xml;
 using System.Xml.Serialization;
-using Kp.Ms.Oxi.Common;
 using Kp.Ms.Oxi.Factories;
 using Kp.Ms.Oxi.Interfaces;
-using Kp.Ms.Oxi.Models.Fidelio;
-using Kp.Ms.Oxi.Models.Opera;
 using Kp.Ms.Oxi.Models.Request;
 
 namespace Kp.Ms.Oxi.Services;
 
 public class XmlCreatorService : IXmlCreator
 {
-    private readonly IConfiguration _config;
     private readonly XmlWriterSettings _xmlSettings;
     private readonly ReservationContentCreatorFactory _reservationContentFactory;
     
     public XmlCreatorService(IConfiguration config, ReservationContentCreatorFactory reservationContentFactory)
     {
-        _config = config;
         _xmlSettings = new XmlWriterSettings
         {
             OmitXmlDeclaration = true
@@ -60,20 +54,6 @@ public class XmlCreatorService : IXmlCreator
 
         return xml;
     }
-
-    /*private string GetXmlHeader(SendReservationRequest request, Type type)
-    {
-        return type.Name switch
-        {
-            nameof(Fidelio) => $"""
-                                        <?xml version="1.0" encoding="UTF-8"?>
-                                        """,
-            nameof(Reservation) => $"""
-                                            <?xml version = '1.0'?>
-                                            <?Label {request.Interface.HotelCode}|RESERVATION|{request.Interface.TransactionId}|{request.Interface.Status}?>
-                                            """,
-        };
-    }*/
 
     private void MakeTransactionId(SendReservationRequest request)
     {
