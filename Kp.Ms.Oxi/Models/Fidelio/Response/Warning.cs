@@ -19,4 +19,11 @@ public class Warning
 
     [XmlText]
     public string Text { get; set; }
+
+    public Warning() { }
+
+    public Warning(string text)
+    {
+        Text = text;
+    }
 }

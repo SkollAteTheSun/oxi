@@ -6,6 +6,11 @@ using Kp.Ms.Oxi.Models.Response;
 using Kp.Ms.Oxi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace Kp.Ms.Oxi.Controllers.V1;
 
@@ -60,12 +65,17 @@ public class MessageController : BaseController
     [HttpPost("receive/fidelio-xml")]
     [SwaggerOperation(Summary = "Получение сообщения от fidelio и отправка в букинг")]
     [Produces("application/xml")]
-    public async Task<ActionResult<OTA_HotelAvailNotifRS>> ReceiveFidelioXml()
+    public async Task<ActionResult<string>> ReceiveFidelioXml()
     {
         using StreamReader reader = new(Request.Body);
         string message = await reader.ReadToEndAsync();
         var xml = await _messageService.FidelioMessageXml(message);
 
-        return Ok(xml);
+        if (xml.Contains("<Errors>"))
+        {
+            Response.StatusCode = 400;
+        }
+
+        return Content(xml, "application/xml", Encoding.UTF8);
     }
 }

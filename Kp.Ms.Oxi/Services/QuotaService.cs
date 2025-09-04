@@ -53,17 +53,20 @@ public class QuotaService
                         roomTypeInventory.RoomType,
                         inventory.Datum,
                         roomTypeInventory.Available,
-                        roomTypeInventory.Definite.ResvCount);
+                        roomTypeInventory.Definite.ResvCount,
+                        roomTypeInventory.PhysicalRooms,
+                        roomTypeInventory.Definite.BlockCount);
 
                     roomQuotas.Add(roomQuota);
                 }
                 catch (Exception ex)
                 {
+                    _logService.Log(LogLevel.Error, $"Не удалось обновить квоту {roomTypeDict} отеля {message.HotelReference.HotelCode} в букинге {ex.Message}");
                 }
             }
         }
 
-        _logService.Log(LogLevel.Information, $"Successfully matched {roomQuotas.Count} quotas for hotel code: {message.HotelReference.HotelCode}."); ;
+        _logService.Log(LogLevel.Information, $"Successfully matched {roomQuotas.Count} quotas for hotel code: {message.HotelReference.HotelCode}.");
 
         if (roomQuotas.Any())
         {
@@ -78,8 +81,8 @@ public class QuotaService
         var response = new OTA_HotelAvailNotifRS()
         {
             Success = "",
-            Errors = new List<Error>(),
-            Warnings = new List<Warning>(),
+            Errors = [],
+            Warnings = [],
         };
 
         try
@@ -127,7 +130,7 @@ public class QuotaService
                         ERROR: {ex.Message}";
 
                     _logService.Log(LogLevel.Error, errorMessage);
-                    response.Errors.Add(new Error(errorMessage));
+                    response.Warnings.Add(new Warning(errorMessage));
                 }
             }
 
@@ -153,7 +156,9 @@ public class QuotaService
         string roomTypeCode,
         DateTime date,
         int available,
-        int reserved = 0)
+        int reserved = 0,
+        int totalAsu = 0,
+        int outOfServiceAsu = 0)
     {
         if (!roomTypeDict.TryGetValue(roomTypeCode, out var roomType))
         {
@@ -177,7 +182,9 @@ public class QuotaService
             Date = date,
             Amount = amount,
             AmountAsu = available,
-            ReservedAsu = reserved
+            ReservedAsu = reserved,
+            TotalAsu = totalAsu,
+            OutOfServiceAsu = outOfServiceAsu
         };
     }
 
